@@ -1,0 +1,35 @@
+# ============================================================================
+# ARCHIVO: .gitignore
+# UBICACIÓN: Raíz del proyecto
+# 
+# DESCRIPCIÓN:
+# Archivos y carpetas que Git debe ignorar
+# ============================================================================
+
+# Node modules
+node_modules/
+
+# Variables de entorno
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporales
+tmp/
+temp/
+*.tmp
+
+# Backups
+*.bak
+backup/
