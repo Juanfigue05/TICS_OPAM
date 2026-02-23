@@ -1,0 +1,85 @@
+<!-- ============================================================================
+     COMPONENTE: navbar.html
+     DESCRIPCIÓN: Barra de navegación superior — se carga vía loadComponents()
+     USO EN PÁGINA:
+       1. Agregar al <body>: <div id="navbar-placeholder"></div>
+       2. Llamar en el script:  loadComponents('nombre-pagina-activa');
+     ============================================================================ -->
+
+<header class="terminal-header" id="mainNavbar">
+
+    <!-- LOGO Y TÍTULO -->
+    <div class="logo-section">
+        <span style="font-size: 1.75rem; line-height:1;">✈️</span>
+        <div>
+            <h1 style="font-size: var(--text-lg); font-weight: 700; color: var(--airport-primary); margin:0;">
+                TICS Aeropuerto
+            </h1>
+            <p style="font-size: var(--text-xs); color: var(--gray-500); margin:0;">
+                Gestión de Inventario TI
+            </p>
+        </div>
+    </div>
+
+    <!-- CENTRO: breadcrumb dinámico -->
+    <div id="navBreadcrumb" style="
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: var(--text-sm);
+        color: var(--gray-500);
+    ">
+        <span>OPAM · Aeropuerto Alfonso Bonilla Aragón</span>
+    </div>
+
+    <!-- ACCIONES DERECHA -->
+    <div class="header-actions">
+
+        <!-- Nombre del usuario -->
+        <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0;
+        ">
+            <span id="navUserName" style="
+                font-size: var(--text-sm);
+                font-weight: 600;
+                color: var(--gray-800);
+            ">Cargando...</span>
+            <span id="navUserRole" style="
+                font-size: var(--text-xs);
+                color: var(--gray-500);
+                text-transform: capitalize;
+            "></span>
+        </div>
+
+        <!-- Avatar inicial -->
+        <div id="navAvatar" style="
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--airport-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: var(--text-sm);
+            cursor: default;
+            flex-shrink: 0;
+        ">–</div>
+
+        <!-- Botón cerrar sesión -->
+        <button
+            class="btn btn-secondary btn-sm"
+            onclick="logout()"
+            title="Cerrar sesión"
+            style="display:flex; align-items:center; gap:0.25rem;"
+        >
+            🚪 Salir
+        </button>
+
+    </div>
+
+</header>
