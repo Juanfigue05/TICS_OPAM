@@ -1,73 +1,21 @@
-<!-- ============================================================================
-     COMPONENTE: footer.html
-     DESCRIPCIÓN: Pie de página global — se carga vía loadComponents()
-     USO EN PÁGINA:
-       1. Agregar al <body>: <div id="footer-placeholder"></div>
-       2. Llamar en el script:  loadComponents('/pages/miPagina.html');
-     ============================================================================ -->
-
-<footer id="mainFooter" style="
-    grid-area: footer;
-    background: var(--bg-header);
-    border-top: 1px solid var(--border-color);
-    padding: var(--spacing-md) var(--spacing-xl);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: var(--text-xs);
-    color: var(--gray-500);
-">
-
-    <!-- IZQUIERDA: info del sistema -->
-    <div style="display:flex; align-items:center; gap:var(--spacing-lg);">
-        <span>✈️ <strong style="color:var(--airport-primary);">TICS Aeropuerto</strong> · Sistema de Gestión de Inventario TI</span>
-        <span style="color:var(--gray-300);">|</span>
-        <span>OPAM · Aeropuerto Alfonso Bonilla Aragón · Cali, Colombia</span>
+<footer class="app-footer" id="mainFooter">
+    <div class="footer-left">
+        <span>✈ TICS Aeropuerto</span>
+        <span class="footer-sep">|</span>
+        <span>Alfonso Bonilla Aragón · OPAM</span>
+        <span class="footer-sep">|</span>
+        <span style="color:var(--clr-success);">● Sistema Activo</span>
     </div>
-
-    <!-- DERECHA: estado y versión -->
-    <div style="display:flex; align-items:center; gap:var(--spacing-lg);">
-        <span style="
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            color: var(--status-active);
-            font-weight: 500;
-        ">
-            <span style="
-                width: 7px; height: 7px;
-                border-radius: 50%;
-                background: var(--status-active);
-                display: inline-block;
-            "></span>
-            Sistema Activo
-        </span>
-        <span style="color:var(--gray-300);">|</span>
-        <span>v2.0.0</span>
-        <span style="color:var(--gray-300);">|</span>
-        <span id="footerDateTime" style="font-family: var(--font-mono);"></span>
+    <div class="footer-right">
+        <span class="footer-clock" id="footerClock"></span>
+        <span class="footer-sep">|</span>
+        <span>v3.1</span>
     </div>
-
 </footer>
-
 <script>
-// Reloj en tiempo real del footer
-(function initFooterClock() {
-    const el = document.getElementById('footerDateTime');
-    if (!el) return;
-    function updateClock() {
-        const now = new Date();
-        el.textContent = now.toLocaleString('es-CO', {
-            year:   'numeric',
-            month:  '2-digit',
-            day:    '2-digit',
-            hour:   '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
+(function tick(){
+    const el=document.getElementById('footerClock');
+    if(el) el.textContent=new Date().toLocaleString('es-CO',{dateStyle:'short',timeStyle:'medium'});
+    setTimeout(tick,1000);
 })();
 </script>

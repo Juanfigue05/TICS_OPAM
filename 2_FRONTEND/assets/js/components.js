@@ -1,329 +1,257 @@
 // ============================================================================
-// ARCHIVO: 2_FRONTEND/assets/js/components.js
-// DESCRIPCIÓN: Funciones reutilizables de UI + cargador de componentes HTML
-//              + toggle de modo oscuro
-//
-// FUNCIONES GLOBALES DISPONIBLES:
-//   showSuccess(msg)              → Toast verde de éxito (5 seg, auto-cierra)
-//   showError(msg)                → Toast rojo de error  (5 seg, auto-cierra)
-//   confirmAction(msg)            → Confirm nativo del navegador
-//   formatDate(date)              → Fecha en locale es-CO  "dd/mm/aaaa"
-//   formatDateTime(date)          → Fecha + hora en locale es-CO
-//   getStatusBadge(estado)        → HTML del badge según el estado del equipo
-//   createTableRow(data, cols, actions) → <tr> construido dinámicamente
-//   logout()                      → Cierra sesión con confirmación
-//   loadUserInfo()                → Pone el nombre del usuario en .user-name,
-//                                   #userInfo, #navUserName, #navAvatar, #navUserRole
-//   loadComponents(activePage)    → Carga navbar/sidebar/footer desde /components/
-//   toggleDarkMode()              → Alterna entre modo claro y oscuro
-//   initTheme()                   → Lee la preferencia guardada y la aplica
+// components.js — TICS Aeropuerto v3.1
+// CORRECCIONES:
+//   1. loadUserInfo() usa localStorage como fuente primaria (instantáneo)
+//      y /auth/me como verificación secundaria.
+//      Elimina el bug de rol_db (campo que no existe en la respuesta).
+//   2. loadComponents() re-ejecuta los <script> inyectados vía innerHTML
+//      (los navegadores no los ejecutan automáticamente).
+//   3. Toast system actualizado con nuevas clases del CSS.
 // ============================================================================
-
 
 // ─── TOASTS ──────────────────────────────────────────────────────────────────
 
-/**
- * Muestra un toast de éxito en la esquina superior derecha (5 segundos).
- * @param {string} message
- */
-function showSuccess(message) {
-    _showToast(message, 'success', '✔ Éxito');
-}
+function showSuccess(msg) { _showToast(msg, 'toast-success', '✔'); }
+function showError(msg)   { _showToast(msg, 'toast-error',   '✖'); }
+function showWarning(msg) { _showToast(msg, 'toast-warning',  '⚠'); }
 
-/**
- * Muestra un toast de error en la esquina superior derecha (5 segundos).
- * @param {string} message
- */
-function showError(message) {
-    _showToast(message, 'error', '✖ Error');
-}
-
-function _showToast(message, type, prefix) {
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type} animate-fade-in`;
-    toast.innerHTML = `
-        <strong>${prefix}:</strong> ${message}
-        <button
-            onclick="this.parentElement.remove()"
-            style="float:right; border:none; background:transparent; cursor:pointer; font-size:1.25rem; line-height:1; margin-left:1rem; color:inherit;"
-        >×</button>
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
-}
-
-
-// ─── UTILIDADES GENERALES ────────────────────────────────────────────────────
-
-/**
- * Confirm nativo del navegador.
- * @param {string} message
- * @returns {boolean}
- */
-function confirmAction(message) {
-    return confirm(message);
-}
-
-/**
- * Formatea una fecha en locale es-CO (dd/mm/aaaa).
- * @param {string|Date} date
- * @returns {string}
- */
-function formatDate(date) {
-    if (!date) return 'N/A';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return 'N/A';
-    return d.toLocaleDateString('es-CO');
-}
-
-/**
- * Formatea fecha y hora en locale es-CO.
- * @param {string|Date} date
- * @returns {string}
- */
-function formatDateTime(date) {
-    if (!date) return 'N/A';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return 'N/A';
-    return d.toLocaleString('es-CO');
-}
-
-/**
- * Devuelve el HTML del badge de estado según el valor del campo `estado`.
- * Compatible con los valores del ENUM del schema:
- *   Activo | Mantenimiento | Dado de baja | Almacén | En Bodega
- * @param {string} estado
- * @returns {string}  HTML listo para innerHTML
- */
-function getStatusBadge(estado) {
-    const map = {
-        'Activo':        '<span class="status-indicator on-time">En Servicio</span>',
-        'Mantenimiento': '<span class="status-indicator delayed">Mantenimiento</span>',
-        'Dado de baja':  '<span class="status-indicator cancelled">Fuera de Servicio</span>',
-        'Almacén':       '<span class="badge badge-secondary">En Almacén</span>',
-        'En Bodega':     '<span class="badge badge-secondary">En Bodega</span>',
-    };
-    return map[estado] || `<span class="badge badge-secondary">${estado || 'N/A'}</span>`;
-}
-
-/**
- * Construye un elemento <tr> de tabla de forma dinámica.
- * @param {Object}   data    – Objeto de datos de la fila
- * @param {Array}    columns – [{ field, render }]  render(data) → string HTML
- * @param {Function} actions – actions(data) → string HTML de botones
- * @returns {HTMLTableRowElement}
- */
-function createTableRow(data, columns, actions) {
-    const tr = document.createElement('tr');
-
-    columns.forEach(col => {
-        const td = document.createElement('td');
-        if (col.render) {
-            td.innerHTML = col.render(data);
-        } else {
-            td.textContent = data[col.field] ?? 'N/A';
-        }
-        tr.appendChild(td);
-    });
-
-    if (actions) {
-        const td = document.createElement('td');
-        td.innerHTML = actions(data);
-        tr.appendChild(td);
+function _showToast(msg, type, icon) {
+    // Crear contenedor si no existe
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
     }
 
-    return tr;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-msg">${msg}</span>
+        <span class="toast-close" onclick="this.closest('.toast').remove()">×</span>
+    `;
+    container.appendChild(toast);
+
+    // Auto-eliminar en 4.5s con fade
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
 }
 
+// ─── UTILIDADES ──────────────────────────────────────────────────────────────
+
+function formatDate(date) {
+    if (!date) return '—';
+    const d = new Date(date);
+    return isNaN(d) ? '—' : d.toLocaleDateString('es-CO');
+}
+
+function formatDateTime(date) {
+    if (!date) return '—';
+    const d = new Date(date);
+    return isNaN(d) ? '—' : d.toLocaleString('es-CO');
+}
 
 // ─── AUTENTICACIÓN ───────────────────────────────────────────────────────────
 
-/**
- * Cierra la sesión del usuario con confirmación previa.
- */
-function logout() {
-    if (confirmAction('¿Estás seguro de cerrar sesión?')) {
-        API.logout();
+window.logout = function () {
+    if (confirm('¿Cerrar sesión?')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        window.location.href = '/index.html';
     }
+};
+
+// ─── CARGA DE INFO DE USUARIO ────────────────────────────────────────────────
+//
+// ESTRATEGIA DE 3 NIVELES:
+//   1. localStorage.usuario  → Datos del login, disponibles AL INSTANTE
+//      sin petición de red. Formato guardado por index.html después del login.
+//   2. /auth/me              → Verifica y actualiza con datos frescos de la BD.
+//   3. Decodificar JWT       → Fallback si falla la red pero existe el token.
+//
+// RESPUESTA REAL de /auth/me (auth.js):
+//   { success: true, data: {
+//       id_usuario, username, rol (=DB: ADMINISTRADOR/TICS/VISITANTE),
+//       rol_jwt (=JWT: admin/technician/viewer),
+//       id_persona, nombre, correo_asignado, cargo, area, celular,
+//       ultimo_acceso
+//   }}
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ROL_LABELS = {
+    admin:         'Administrador',
+    ADMINISTRADOR: 'Administrador',
+    technician:    'Técnico TICS',
+    TICS:          'Técnico TICS',
+    viewer:        'Visitante',
+    VISITANTE:     'Visitante'
+};
+
+function _applyUserToNavbar(nombre, rolLabel) {
+    const nameEl   = document.getElementById('navUserName');
+    const roleEl   = document.getElementById('navUserRole');
+    const avatarEl = document.getElementById('navAvatar');
+
+    if (nameEl)   nameEl.textContent  = nombre   || '—';
+    if (roleEl)   roleEl.textContent  = rolLabel  || '';
+    if (avatarEl) avatarEl.textContent = (nombre || '?')
+        .split(' ')
+        .filter(Boolean)
+        .map(n => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
 }
 
-
-// ─── INFO DE USUARIO ─────────────────────────────────────────────────────────
-
-/**
- * Carga el nombre y rol del usuario autenticado.
- * Actualiza los siguientes elementos si existen en el DOM:
- *   .user-name, #userInfo → nombre completo
- *   #navUserName          → nombre (navbar componente)
- *   #navUserRole          → rol legible (navbar componente)
- *   #navAvatar            → inicial del nombre (navbar componente)
- */
-async function loadUserInfo() {
+function _decodeJWT(token) {
+    // Decodifica el payload del JWT sin verificar firma (solo para UI)
     try {
-        const response = await API.getMe();
-        if (!response || !response.success) return;
-
-        const { nombre, rol, rol_db } = response.data;
-
-        // Nombre en elementos genéricos
-        ['.user-name', '#userInfo'].forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
-                el.textContent = nombre || '—';
-            });
-        });
-
-        // Navbar componente
-        const navName = document.getElementById('navUserName');
-        if (navName) navName.textContent = nombre || '—';
-
-        const rolLabel = {
-            admin:       'Administrador',
-            technician:  'Técnico TICS',
-            viewer:      'Visitante',
-            ADMINISTRADOR: 'Administrador',
-            TICS:          'Técnico TICS',
-            VISITANTE:     'Visitante',
-        };
-        const navRole = document.getElementById('navUserRole');
-        if (navRole) navRole.textContent = rolLabel[rol] || rolLabel[rol_db] || rol_db || '';
-
-        const avatar = document.getElementById('navAvatar');
-        if (avatar) avatar.textContent = (nombre || '?').charAt(0).toUpperCase();
-
-    } catch (error) {
-        console.warn('loadUserInfo:', error.message);
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload; // { id_usuario, username, rol, rol_db, id_persona }
+    } catch (e) {
+        return null;
     }
 }
 
+async function loadUserInfo() {
+    const token = localStorage.getItem('token');
+
+    // ── Nivel 1: localStorage.usuario (instantáneo) ──
+    const stored = localStorage.getItem('usuario');
+    if (stored) {
+        try {
+            const u = JSON.parse(stored);
+            // El login guarda: { nombre, username, rol, rol_db, cargo, area, ... }
+            const nombre   = u.nombre || u.username || '—';
+            const rolLabel = ROL_LABELS[u.rol] || ROL_LABELS[u.rol_db] || u.rol_db || u.rol || '';
+            _applyUserToNavbar(nombre, rolLabel);
+        } catch (e) { /* JSON inválido */ }
+    }
+
+    // ── Nivel 2: /auth/me (verifica token y trae datos actualizados) ──
+    if (!token) return;
+
+    try {
+        const res = await API.getMe();
+        // res.data.rol = DB role (ADMINISTRADOR | TICS | VISITANTE)
+        // res.data.rol_jwt = JWT role (admin | technician | viewer)
+        if (res && res.success && res.data) {
+            const d        = res.data;
+            const nombre   = d.nombre || d.username || '—';
+            const rolLabel = ROL_LABELS[d.rol_jwt] || ROL_LABELS[d.rol] || d.rol || '';
+            _applyUserToNavbar(nombre, rolLabel);
+            // Actualizar localStorage con datos frescos de la BD
+            const prev = JSON.parse(localStorage.getItem('usuario') || '{}');
+            localStorage.setItem('usuario', JSON.stringify({ ...prev, ...d }));
+        }
+    } catch (err) {
+        // ── Nivel 3: Decodificar JWT como último recurso ──
+        if (token) {
+            const payload = _decodeJWT(token);
+            if (payload) {
+                const nombre   = payload.username || '—';
+                const rolLabel = ROL_LABELS[payload.rol] || '';
+                _applyUserToNavbar(nombre, rolLabel);
+            }
+        }
+        // No redirigir aquí: puede ser error de red temporal
+        console.warn('[TICS] loadUserInfo - error al verificar sesión:', err.message);
+    }
+}
 
 // ─── CARGADOR DE COMPONENTES HTML ────────────────────────────────────────────
+//
+// FIX CRÍTICO: Los navegadores NO ejecutan <script> insertados vía innerHTML.
+// La función _executeScripts() clona cada <script> y lo reemplaza en el DOM,
+// lo que fuerza al navegador a ejecutarlo.
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Carga un fragmento HTML externo e inyecta su contenido en el elemento destino.
- * @param {string} selector  – CSS selector del <div> contenedor
- * @param {string} url       – Ruta del archivo HTML fragmento
- * @returns {Promise<boolean>}
- */
-async function includeHTML(selector, url) {
-    const container = document.querySelector(selector);
-    if (!container) return false;
+function _executeScripts(container) {
+    container.querySelectorAll('script').forEach(oldScript => {
+        const newScript = document.createElement('script');
+        // Copiar atributos (type, src, etc.)
+        Array.from(oldScript.attributes).forEach(attr =>
+            newScript.setAttribute(attr.name, attr.value)
+        );
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+}
+
+async function loadComponents(activePage = '') {
+    // Determinar página activa para resaltar enlace en sidebar
+    const currentPath = activePage || window.location.pathname;
+
     try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        container.innerHTML = await res.text();
-        return true;
-    } catch (e) {
-        console.warn(`No se pudo cargar componente [${url}]:`, e.message);
+        // Cargar los tres componentes en paralelo
+        const [navbarHtml, sidebarHtml, footerHtml] = await Promise.all([
+            fetch('/components/navbar.html').then(r => {
+                if (!r.ok) throw new Error(`navbar.html → HTTP ${r.status}`);
+                return r.text();
+            }),
+            fetch('/components/sidebar.html').then(r => {
+                if (!r.ok) throw new Error(`sidebar.html → HTTP ${r.status}`);
+                return r.text();
+            }),
+            fetch('/components/footer.html').then(r => {
+                if (!r.ok) throw new Error(`footer.html → HTTP ${r.status}`);
+                return r.text();
+            })
+        ]);
+
+        // Inyectar HTML
+        const navbarEl  = document.getElementById('navbar-placeholder');
+        const sidebarEl = document.getElementById('sidebar-placeholder');
+        const footerEl  = document.getElementById('footer-placeholder');
+
+        if (navbarEl)  { navbarEl.innerHTML  = navbarHtml;  _executeScripts(navbarEl);  }
+        if (sidebarEl) { sidebarEl.innerHTML = sidebarHtml; _executeScripts(sidebarEl); }
+        if (footerEl)  { footerEl.innerHTML  = footerHtml;  _executeScripts(footerEl);  }
+
+        // Marcar enlace activo en sidebar
+        document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+            const page = link.getAttribute('data-page');
+            if (page && currentPath.includes(page)) {
+                link.classList.add('active');
+            }
+        });
+
+        // Cargar info del usuario en el navbar ya insertado
+        // (se llama tanto desde aquí como desde el propio navbar.html
+        //  gracias a _executeScripts — sin duplicar, solo el segundo
+        //  call sobreescribe con datos más frescos)
+        await loadUserInfo();
+
+    } catch (err) {
+        console.error('[TICS] loadComponents error:', err.message);
+    }
+}
+
+// ─── GUARDS DE AUTENTICACIÓN ─────────────────────────────────────────────────
+
+function requireAuth() {
+    if (!localStorage.getItem('token')) {
+        window.location.href = '/index.html';
         return false;
     }
+    return true;
 }
 
-/**
- * Carga los tres componentes (navbar, sidebar, footer) y marca el link activo.
- *
- * REQUISITOS en el HTML de la página:
- *   <div id="navbar-placeholder"></div>    — dentro de .airport-layout, antes del <aside>
- *   <div id="sidebar-placeholder"></div>   — donde va el <aside>
- *   <div id="footer-placeholder"></div>    — al final del .airport-layout
- *
- * LLAMADA en el script de la página:
- *   loadComponents('/pages/miPagina.html');
- *   // o sin argumento: detecta automáticamente
- *
- * @param {string} [activePage]  – Ruta de la página actual p.ej '/pages/celular.html'
- */
-async function loadComponents(activePage) {
-    const currentPage = activePage || window.location.pathname;
+// ─── INICIALIZACIÓN ──────────────────────────────────────────────────────────
 
-    // Cargar los tres fragmentos en paralelo
-    await Promise.all([
-        includeHTML('#navbar-placeholder',  '/components/navbar.html'),
-        includeHTML('#sidebar-placeholder', '/components/sidebar.html'),
-        includeHTML('#footer-placeholder',  '/components/footer.html'),
-    ]);
+// En páginas de login no hacer nada
+const _isPublicPage = ['/', '/index.html', '/login.html']
+    .some(p => window.location.pathname.endsWith(p.replace('/', '')));
 
-    // Marcar el enlace activo en el sidebar
-    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
-        link.classList.remove('active');
-        if (link.getAttribute('data-page') === currentPage) {
-            link.classList.add('active');
-        }
-    });
-
-    // Cargar info del usuario en el navbar cargado
-    loadUserInfo();
-
-    // Actualizar el ícono del botón de modo oscuro si existe
-    _updateThemeToggleIcon();
-}
-
-
-// ─── MODO OSCURO ─────────────────────────────────────────────────────────────
-
-/**
- * Aplica el tema guardado al arrancar la página.
- * Lee localStorage key 'tics-theme': 'dark' | 'light'
- * Si no hay preferencia guardada, respeta prefers-color-scheme.
- * Llamar en <head> o al inicio del <body> para evitar flash.
- */
-function initTheme() {
-    const saved = localStorage.getItem('tics-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = saved || (prefersDark ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', theme);
-}
-
-/**
- * Alterna entre modo claro y modo oscuro.
- * Guarda la preferencia en localStorage.
- */
-function toggleDarkMode() {
-    const current = document.documentElement.getAttribute('data-theme');
-    const next    = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('tics-theme', next);
-    _updateThemeToggleIcon();
-}
-
-/**
- * Actualiza el ícono / texto del botón de toggle de tema
- * si existe un elemento con id="themeToggleBtn".
- */
-function _updateThemeToggleIcon() {
-    const btn = document.getElementById('themeToggleBtn');
-    if (!btn) return;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    btn.textContent = isDark ? '☀️ Modo claro' : '🌙 Modo oscuro';
-    btn.title       = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
-}
-
-
-// ─── INICIALIZACIÓN AUTOMÁTICA ───────────────────────────────────────────────
-
-// Aplicar tema guardado antes del primer render
-initTheme();
-
-document.addEventListener('DOMContentLoaded', () => {
-    const path = window.location.pathname;
-
-    // No tocar nada en las páginas públicas (login)
-    const isPublic = path === '/'
-                  || path.endsWith('index.html')
-                  || path.endsWith('login.html');
-    if (isPublic) {
-        // Solo aplicar tema en login también
-        _updateThemeToggleIcon();
-        return;
+if (!_isPublicPage) {
+    // Verificar autenticación básica
+    if (!localStorage.getItem('token')) {
+        window.location.href = '/index.html';
     }
-
-    // Si la página tiene placeholders de componentes, loadComponents()
-    // debe llamarse manualmente en el script de la página.
-    // Si no los tiene (nav inline), cargamos solo el nombre del usuario.
-    const usesPlaceholders = !!document.querySelector('#navbar-placeholder');
-    if (!usesPlaceholders) {
-        loadUserInfo();
-    }
-
-    // Sincronizar ícono del toggle si ya está en el DOM
-    _updateThemeToggleIcon();
-});
+}

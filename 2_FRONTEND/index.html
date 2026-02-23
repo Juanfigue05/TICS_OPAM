@@ -3,112 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TICS Aeropuerto - Login</title>
-    <link rel="stylesheet" href="./assets/css/airport-theme.css">
+    <title>Iniciar Sesión — TICS Aeropuerto</title>
+    <link rel="stylesheet" href="/assets/css/airport-theme.css">
 </head>
 <body class="login-page">
+    <div class="login-grid-bg"></div>
+
     <div class="login-container">
         <div class="login-card">
-            <div class="login-header">
-                <img src="./assets/images/logos/opam_logo.svg" alt="OPAM" class="logo"
-                     onerror="this.style.display='none'">
-                <h1>✈️ TICS Aeropuerto</h1>
-                <p>Sistema de Gestión de Inventario TI</p>
+
+            <div class="login-logo-wrap">
+                <div class="login-logo-icon">✈</div>
+                <h1 class="login-title">TICS Aeropuerto</h1>
+                <p class="login-subtitle">Sistema de Gestión de Inventario TI</p>
+                <span class="login-org">Alfonso Bonilla Aragón · OPAM</span>
             </div>
 
-            <form id="loginForm" class="login-form">
+            <form class="login-form" id="loginForm" autocomplete="off">
                 <div class="form-group">
                     <label for="username">Usuario</label>
-                    <input type="text" id="username" name="username"
-                           class="form-control" required autofocus
-                           placeholder="Ingresa tu usuario">
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="Ingresa tu usuario"
+                        required
+                        autofocus
+                        autocomplete="username"
+                    >
                 </div>
 
                 <div class="form-group">
                     <label for="password">Contraseña</label>
-                    <input type="password" id="password" name="password"
-                           class="form-control" required
-                           placeholder="Ingresa tu contraseña">
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="••••••••"
+                        required
+                        autocomplete="current-password"
+                    >
                 </div>
 
-                <div id="errorMessage" class="alert alert-error" style="display:none;"></div>
+                <div class="login-error" id="errorMsg"></div>
 
-                <button type="submit" class="btn-primary btn-block" id="submitBtn">
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">
                     Iniciar Sesión
                 </button>
             </form>
 
             <div class="login-footer">
-                <p>OPAM - Aeropuerto Alfonso Bonilla Aragón</p>
-                <p class="text-muted">v2.0.0</p>
+                Acceso restringido — solo personal autorizado
             </div>
         </div>
     </div>
 
+    <script src="/assets/js/api.js"></script>
     <script>
-        // ── API mínimo para la página de login (sin protección de rutas) ──────
-        const API = {
-            baseURL: `${window.location.origin}/api`,
-            setToken(t) { localStorage.setItem('token', t); },
-            clearToken() { localStorage.removeItem('token'); localStorage.removeItem('usuario'); },
-            async login(username, password) {
-                const res = await fetch(`${this.baseURL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    this.setToken(data.token);
-                    localStorage.setItem('usuario', JSON.stringify(data.usuario));
-                }
-                return data;
-            }
-        };
+        const form      = document.getElementById('loginForm');
+        const errorDiv  = document.getElementById('errorMsg');
+        const submitBtn = document.getElementById('submitBtn');
 
-        // Limpiar sesión anterior
-        API.clearToken();
+        // Redirigir si ya está logueado
+        if (API.token) window.location.href = '/pages/dashboard.html';
 
-        // Si ya tiene sesión válida, redirigir
-        const tokenExistente = localStorage.getItem('token');
-        if (tokenExistente) {
-            window.location.href = './pages/dashboard.html';
+        function showError(msg) {
+            errorDiv.textContent = msg;
+            errorDiv.classList.add('show');
         }
 
-        // Manejar el formulario de login
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        function hideError() {
+            errorDiv.classList.remove('show');
+        }
 
-            const username  = document.getElementById('username').value.trim();
-            const password  = document.getElementById('password').value;
-            const errorDiv  = document.getElementById('errorMessage');
-            const submitBtn = document.getElementById('submitBtn');
+        function setLoading(loading) {
+            submitBtn.disabled = loading;
+            submitBtn.innerHTML = loading
+                ? '<span class="loader"></span> Iniciando...'
+                : 'Iniciar Sesión';
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
 
             if (!username || !password) {
-                errorDiv.textContent = 'Por favor ingresa usuario y contraseña.';
-                errorDiv.style.display = 'block';
+                showError('Por favor completa ambos campos.');
                 return;
             }
 
+            setLoading(true);
+
             try {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Iniciando sesión...';
-                errorDiv.style.display = 'none';
-
-                const response = await API.login(username, password);
-
-                if (response.success) {
-                    // ✅ Redirige a la ruta correcta del dashboard
-                    window.location.href = './pages/dashboard.html';
+                const res = await API.login(username, password);
+                if (res.success) {
+                    const token = res.token || res.data?.token;
+                    API.setToken(token);
+                    if (res.usuario) localStorage.setItem('usuario', JSON.stringify(res.usuario));
+                    window.location.href = '/pages/dashboard.html';
                 } else {
-                    throw new Error(response.error || 'Error al iniciar sesión');
+                    showError(res.error || 'Credenciales incorrectas.');
                 }
-            } catch (error) {
-                errorDiv.textContent = error.message || 'Error de conexión con el servidor';
-                errorDiv.style.display = 'block';
+            } catch (err) {
+                showError('No se pudo conectar al servidor. Intenta de nuevo.');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Iniciar Sesión';
+                setLoading(false);
             }
         });
     </script>

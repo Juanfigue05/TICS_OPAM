@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exportar / Historial — TICS Aeropuerto</title>
+    <link rel="stylesheet" href="../assets/css/airport-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .export-layout { display: flex; flex-direction: column; gap: 2rem; }
+
+        /* ── Tarjetas equipo ── */
+        .equip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 0.875rem;
+        }
+        .equip-card {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--r-lg);
+            padding: 1.15rem 1.1rem;
+            display: flex; flex-direction: column; gap: 0.7rem;
+            transition: border-color var(--tr-normal), transform var(--tr-normal);
+        }
+        .equip-card:hover { border-color: var(--clr-border-light); transform: translateY(-1px); }
+        .equip-card-top { display: flex; align-items: center; gap: 0.7rem; }
+        .equip-icon {
+            width: 36px; height: 36px; border-radius: var(--r-sm);
+            background: var(--clr-primary-glow);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
+        }
+        .equip-icon.icon-gestión { background: rgba(168,85,247,0.12); }
+        .equip-info-name  { font-weight: 600; font-size: 0.86rem; color: var(--clr-text); }
+        .equip-info-count { font-size: 0.71rem; color: var(--clr-text-muted); margin-top: 0.1rem; }
+        .equip-info-count span { font-family: var(--font-mono); color: var(--clr-primary); font-weight: 700; }
+
+        .btn-dl {
+            display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+            padding: 0.42rem 0.75rem;
+            border-radius: var(--r-sm);
+            background: rgba(43,127,255,0.08);
+            border: 1px solid rgba(43,127,255,0.18);
+            color: var(--clr-primary);
+            font-size: 0.76rem; font-weight: 600;
+            cursor: pointer; transition: all var(--tr-fast);
+            font-family: var(--font-body);
+        }
+        .btn-dl:hover:not(:disabled) { background: var(--clr-primary); color: white; border-color: var(--clr-primary); }
+        .btn-dl:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-dl svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+        /* Separador entre equipos y gestión */
+        .grid-section-label {
+            font-size: 0.62rem; font-weight: 700;
+            color: var(--clr-text-faint);
+            text-transform: uppercase; letter-spacing: 0.1em;
+            margin: 0.35rem 0 0.1rem;
+            grid-column: 1 / -1;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .grid-section-label::after {
+            content: ''; flex: 1; height: 1px; background: var(--clr-border);
+        }
+
+        /* Banner Export All */
+        .export-all-banner {
+            background: linear-gradient(135deg, rgba(43,127,255,0.1), rgba(0,212,255,0.05));
+            border: 1px solid rgba(43,127,255,0.2);
+            border-radius: var(--r-lg);
+            padding: 1.15rem 1.5rem;
+            display: flex; align-items: center;
+            justify-content: space-between;
+            gap: 1rem; flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+        .export-all-title { font-family: var(--font-display); font-weight: 700; font-size: 0.93rem; color: var(--clr-text); }
+        .export-all-sub   { font-size: 0.74rem; color: var(--clr-text-muted); margin-top: 0.1rem; }
+
+        .export-progress-wrap {
+            display: none; gap: 0.5rem; align-items: center;
+            font-size: 0.76rem; color: var(--clr-text-muted);
+        }
+        .export-progress-wrap.visible { display: flex; }
+        .progress-bar-track { width: 130px; height: 5px; background: var(--clr-border); border-radius: 99px; overflow: hidden; }
+        .progress-bar-fill  { height: 100%; background: linear-gradient(90deg, var(--clr-primary), var(--clr-accent)); border-radius: 99px; transition: width 0.3s ease; width: 0%; }
+
+        /* ── Historial ── */
+        .historial-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+        /* Badges de acciones */
+        .badge-asignacion   { background: var(--clr-info-bg);    color: var(--clr-info);    border-color: rgba(0,212,255,0.2); }
+        .badge-devolucion   { background: var(--clr-warning-bg); color: var(--clr-warning); border-color: rgba(255,176,32,0.2); }
+        .badge-mantenimiento{ background: rgba(168,85,247,0.12); color: #a855f7;             border-color: rgba(168,85,247,0.2); }
+        .badge-reemplazo    { background: rgba(251,146,60,0.12); color: #fb923c;             border-color: rgba(251,146,60,0.2); }
+        .badge-dadodebaja   { background: var(--clr-danger-bg);  color: var(--clr-danger);  border-color: rgba(255,77,106,0.2); }
+        .badge-reactivacion { background: var(--clr-success-bg); color: var(--clr-success); border-color: rgba(16,217,143,0.2); }
+
+        .tipo-chip {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--r-sm);
+            background: var(--clr-surface-3); border: 1px solid var(--clr-border);
+            font-size: 0.67rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.04em;
+            color: var(--clr-text-muted); white-space: nowrap;
+        }
+
+        /* Estado vacío del historial */
+        .hist-empty {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 3rem 2rem; gap: 0.5rem;
+            text-align: center;
+        }
+        .hist-empty-icon  { font-size: 2.2rem; opacity: 0.2; margin-bottom: 0.35rem; }
+        .hist-empty-title { font-weight: 600; color: var(--clr-text-muted); font-size: 0.9rem; }
+        .hist-empty-sub   { font-size: 0.76rem; color: var(--clr-text-faint); max-width: 280px; }
+
+        /* ── Paginación del historial ── */
+        .h-pagination {
+            display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+        }
+        .h-pg-btn {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            padding: 0.3rem 0.65rem;
+            border-radius: var(--r-sm);
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            color: var(--clr-text-muted);
+            font-size: 0.76rem; font-weight: 500;
+            font-family: var(--font-body);
+            cursor: pointer; transition: all var(--tr-fast);
+            white-space: nowrap;
+        }
+        .h-pg-btn:hover:not(:disabled) {
+            background: var(--clr-surface-3);
+            border-color: var(--clr-border-light);
+            color: var(--clr-text);
+        }
+        .h-pg-btn.h-pg-active {
+            background: var(--clr-primary);
+            border-color: var(--clr-primary);
+            color: white; font-weight: 700;
+        }
+        .h-pg-btn:disabled { opacity: 0.32; cursor: not-allowed; }
+        .h-pg-dots {
+            color: var(--clr-text-faint); font-size: 0.8rem; padding: 0 0.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .equip-grid { grid-template-columns: repeat(2, 1fr); }
+            .export-all-banner { flex-direction: column; align-items: flex-start; }
+            .historial-filters { gap: .5rem; }
+            .historial-filters select { font-size:.74rem; padding:.3rem .5rem; }
+        }
+        @media (max-width: 480px) {
+            .equip-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+            .h-pg-btn { padding: .25rem .5rem; font-size: .72rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="airport-layout">
+    <div id="sidebar-placeholder"></div>
+    <div id="navbar-placeholder"></div>
+
+    <main class="app-main">
+
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--clr-primary)" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="12" y1="18" x2="12" y2="12"/>
+                        <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                    Exportar / Historial
+                </h1>
+                <p class="page-subtitle">Descarga inventarios en Excel y consulta los últimos cambios del sistema</p>
+            </div>
+        </div>
+
+        <div class="export-layout">
+
+            <!-- ══════════════════════════════════
+                 SECCIÓN 1: EXPORTAR
+                 ══════════════════════════════════ -->
+            <section>
+                <!-- Banner Export All -->
+                <div class="export-all-banner">
+                    <div>
+                        <div class="export-all-title">📦 Exportar Todo el Inventario</div>
+                        <div class="export-all-sub">Un solo archivo Excel con una hoja por cada tipo de equipo, personas y ubicaciones</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                        <div class="export-progress-wrap" id="allProgressWrap">
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" id="allProgressBar"></div>
+                            </div>
+                            <span id="allProgressLabel">0 / 9</span>
+                        </div>
+                        <button class="btn btn-primary" id="btnExportAll" onclick="exportAll()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Descargar Todo (.xlsx)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grid de tarjetas -->
+                <div class="equip-grid" id="equipGrid">
+                    <!-- Skeleton mientras carga -->
+                    <div class="grid-section-label">Equipos TI</div>
+                </div>
+            </section>
+
+            <!-- ══════════════════════════════════
+                 SECCIÓN 2: HISTORIAL DE CAMBIOS
+                 ══════════════════════════════════ -->
+            <section>
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <div class="card-header" style="padding:1.25rem 1.5rem 0.9rem;flex-wrap:wrap;gap:.75rem;">
+
+                        <!-- Título dinámico -->
+                        <span class="card-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:.3rem;">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            Historial de Cambios —
+                            <span id="histTitleCount" style="color:var(--clr-primary);margin-left:.2rem;">últimos 10</span>
+                        </span>
+
+                        <!-- Controles -->
+                        <div class="historial-filters">
+
+                            <!-- Filtro: mostrar N registros -->
+                            <div style="display:flex;align-items:center;gap:.4rem;">
+                                <span style="font-size:.72rem;color:var(--clr-text-muted);white-space:nowrap;">Mostrar</span>
+                                <select id="histLimit"
+                                    onchange="histPage=1; loadHistorial()"
+                                    style="width:auto;padding:.35rem .6rem;font-size:.78rem;">
+                                    <option value="10" selected>10</option>
+                                    <option value="15">15</option>
+                                    <option value="20">20</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+
+                            <!-- Filtro: tipo de equipo -->
+                            <select id="filtroTipoEquipo"
+                                onchange="histPage=1; loadHistorial()"
+                                style="width:auto;padding:.35rem .6rem;font-size:.78rem;">
+                                <option value="">Todos los equipos</option>
+                                <option value="COMPUTADOR">Computador</option>
+                                <option value="CELULAR">Celular</option>
+                                <option value="IMPRESORA">Impresora</option>
+                                <option value="RADIO">Radio</option>
+                                <option value="TELEFONO_IP">Teléfono IP</option>
+                                <option value="TABLET">Tablet</option>
+                                <option value="ACCESORIO">Accesorio</option>
+                            </select>
+
+                            <!-- Filtro: tipo de acción -->
+                            <select id="filtroAccion"
+                                onchange="histPage=1; loadHistorial()"
+                                style="width:auto;padding:.35rem .6rem;font-size:.78rem;">
+                                <option value="">Todas las acciones</option>
+                                <option value="ASIGNACION">Asignación</option>
+                                <option value="DEVOLUCION">Devolución</option>
+                                <option value="MANTENIMIENTO">Mantenimiento</option>
+                                <option value="REEMPLAZO">Reemplazo</option>
+                                <option value="DADO DE BAJA">Dado de Baja</option>
+                                <option value="REACTIVACION">Reactivación</option>
+                            </select>
+
+                            <!-- Refrescar -->
+                            <button class="btn btn-ghost btn-sm" onclick="histPage=1; loadHistorial()" title="Refrescar">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                </svg>
+                                Refrescar
+                            </button>
+
+                            <!-- Exportar -->
+                            <button class="btn btn-ghost btn-sm" onclick="exportHistorial()" title="Exportar historial completo">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                Exportar Historial
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper" style="border:none;border-radius:0;border-top:1px solid var(--clr-border);">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha / Hora</th>
+                                    <th>Equipo</th>
+                                    <th>Acción</th>
+                                    <th class="col-hide-mobile">Persona</th>
+                                    <th class="col-hide-mobile">Ubicación</th>
+                                    <th class="col-hide-mobile">Usuario</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historialBody">
+                                <tr class="loading-row">
+                                    <td colspan="7"><div class="loader"></div></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Footer: paginación + info -->
+                    <div style="border-top:1px solid var(--clr-border);background:var(--clr-surface-2);">
+                        <!-- Paginación (se oculta si solo hay 1 página) -->
+                        <div id="histPaginacion" style="display:none;padding:.65rem 1.5rem;border-bottom:1px solid var(--clr-border);">
+                            <div class="h-pagination"></div>
+                        </div>
+                        <!-- Info de registros -->
+                        <div id="historialFooter"
+                            style="padding:.55rem 1.5rem;font-size:.7rem;color:var(--clr-text-faint);
+                                   display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════
+   CONFIGURACIÓN DE EXPORTABLES
+   ════════════════════════════════════════════════════════════ */
+const EQUIPOS = [
+    {
+        key: 'computadores', label: 'Computadores', icon: '💻',
+        endpoint: '/computadores', sheet: 'Computadores',
+        cols: [
+            ['codigo_activo','Código Activo'],['nombre_equipo','Nombre Equipo'],
+            ['tipo_computador','Tipo'],['marca_equipo','Marca'],['modelo_equipo','Modelo'],
+            ['serial_equipo','Serial'],['procesador','Procesador'],['capacidad_ram','RAM'],
+            ['tipo_modulo_ram','Tipo RAM'],['capacidad_disco','Disco'],['tipo_disco','Tipo Disco'],
+            ['sistema_operativo','Sistema Operativo'],['mac_wifi','MAC WiFi'],
+            ['mac_ethernet','MAC Ethernet'],['direccion_ip','IP'],
+            ['serial_teclado','Serial Teclado'],['serial_mouse','Serial Mouse'],
+            ['marca_monitor','Marca Monitor'],['serial_monitor','Serial Monitor'],
+            ['segunda_pantalla','Segunda Pantalla'],['cargador_regulador','Cargador/Regulador'],
+            ['estado','Estado Físico'],['activo','Estado'],
+            ['nombre_usuario','Asignado A'],['cargo','Cargo'],
+            ['Nombre_ubicacion','Ubicación'],['Area','Área'],
+            ['fecha_asignacion','F. Asignación'],['fecha_adquisicion','F. Adquisición'],
+            ['fecha_garantia','F. Garantía'],['ultimo_mantenimiento','Últ. Mantenimiento'],['notas','Notas'],
+        ]
+    },
+    {
+        key: 'celulares', label: 'Celulares', icon: '📱',
+        endpoint: '/celulares', sheet: 'Celulares',
+        cols: [
+            ['nombre_celular','Nombre'],['numero_celular','Número'],['marca','Marca'],['modelo','Modelo'],
+            ['serial_celular','Serial'],['sim_company','Operador'],['imei1_celular','IMEI 1'],
+            ['imei2_celular','IMEI 2'],['punk','PUNK'],['procesador','Procesador'],['ram','RAM'],
+            ['almacenamiento','Almacenamiento'],['sistema_op','SO'],['version_op','Versión SO'],
+            ['plan_datos','Plan Datos'],['estado','Estado Físico'],['activo','Estado'],
+            ['nombre_usuario','Asignado A'],['Nombre_ubicacion','Ubicación'],
+            ['fecha_asignacion','F. Asignación'],['fecha_adquisicion','F. Adquisición'],
+            ['fecha_vencimiento_contrato','Venc. Contrato'],['notas','Notas'],
+        ]
+    },
+    {
+        key: 'impresoras', label: 'Impresoras', icon: '🖨️',
+        endpoint: '/impresoras', sheet: 'Impresoras',
+        cols: [
+            ['nombre_equipo','Nombre'],['marca','Marca'],['modelo','Modelo'],['serial','Serial'],
+            ['tipo_impresora','Tipo'],['tipo_red','Red'],['ip_impresora','IP'],
+            ['mac_ethernet','MAC Ethernet'],['mac_wifi','MAC WiFi'],['impresion_color','Color'],
+            ['tiene_escaner','Escáner'],['tiene_fax','Fax'],['impresion_duplex','Dúplex'],
+            ['tamano_papel_max','Papel Máx.'],['estado','Estado Físico'],['activo','Estado'],
+            ['Nombre_ubicacion','Ubicación'],['fecha_adquisicion','F. Adquisición'],
+            ['ultimo_mantenimiento','Últ. Mantenimiento'],['notas','Notas'],
+        ]
+    },
+    {
+        key: 'radios', label: 'Radios', icon: '📻',
+        endpoint: '/radios', sheet: 'Radios',
+        cols: [
+            ['tipo_radio','Tipo'],['marca','Marca'],['modelo','Modelo'],['serial_radio','Serial'],
+            ['frecuencia','Frecuencia (MHz)'],['antena','Antena'],['estado_antena','Estado Antena'],
+            ['bateria','Referencia Batería'],['serial_bateria','Serial Batería'],['estado_bateria','Estado Batería'],
+            ['diadema_manos_libres','Diadema'],['base_cargador','Base Cargador'],['serial_cargador','Serial Cargador'],
+            ['estado','Estado Físico'],['activo','Estado'],
+            ['nombre_usuario','Asignado A'],['Nombre_ubicacion','Ubicación'],
+            ['fecha_asignacion','F. Asignación'],['fecha_adquisicion','F. Adquisición'],['notas','Notas'],
+        ]
+    },
+    {
+        key: 'telefonos_ip', label: 'Teléfonos IP', icon: '📞',
+        endpoint: '/telefonos-ip', sheet: 'Telefonos_IP',
+        cols: [
+            ['marca','Marca'],['modelo','Modelo'],['serial_telefono','Serial'],
+            ['mac_address','MAC'],['ip_telefono','IP'],['extension','Extensión'],
+            ['protocolo','Protocolo'],['firmware_version','Firmware'],['poe','PoE'],
+            ['tiene_pantalla','Pantalla'],['tamano_pantalla','Tam. Pantalla'],['cantidad_lineas','Líneas'],
+            ['estado','Estado Físico'],['activo','Estado'],
+            ['nombre_usuario','Asignado A'],['Nombre_ubicacion','Ubicación'],
+            ['fecha_asignacion','F. Asignación'],['fecha_adquisicion','F. Adquisición'],
+            ['ultimo_mantenimiento','Últ. Mantenimiento'],['notas','Notas'],
+        ]
+    },
+    {
+        key: 'tablets', label: 'Tablets', icon: '📲',
+        endpoint: '/tablets', sheet: 'Tablets',
+        cols: [
+            ['nombre_tablet','Nombre'],['marca','Marca'],['modelo','Modelo'],['serial_tablet','Serial'],
+            ['imei','IMEI'],['procesador','Procesador'],['ram','RAM'],['almacenamiento','Almacenamiento'],
+            ['tamano_pantalla','Pantalla'],['resolucion','Resolución'],['sistema_op','SO'],
+            ['version_op','Versión SO'],['tiene_sim','Tiene SIM'],['sim_company','Operador'],
+            ['plan_datos','Plan Datos'],['estado','Estado Físico'],['activo','Estado'],
+            ['nombre_usuario','Asignado A'],['Nombre_ubicacion','Ubicación'],
+            ['fecha_asignacion','F. Asignación'],['fecha_adquisicion','F. Adquisición'],['notas','Notas'],
+        ]
+    },
+    {
+        key: 'accesorios', label: 'Accesorios', icon: '🔌',
+        endpoint: '/accesorios', sheet: 'Accesorios',
+        cols: [
+            ['tipo_accesorio','Tipo'],['marca','Marca'],['modelo','Modelo'],['serial','Serial'],
+            ['descripcion','Descripción'],['cantidad','Cantidad'],
+            ['estado','Estado Físico'],['activo','Estado'],
+            ['nombre_usuario','Asignado A'],['Nombre_ubicacion','Ubicación'],
+            ['fecha_asignacion','F. Asignación'],['fecha_adquisicion','F. Adquisición'],['notas','Notas'],
+        ]
+    },
+];
+
+/* Gestión (personas y ubicaciones) */
+const GESTION = [
+    {
+        key: 'personas', label: 'Personas', icon: '👥',
+        endpoint: '/personas', sheet: 'Personas',
+        esGestion: true,
+        cols: [
+            ['nombre','Nombre'],['correo_asignado','Correo'],['cargo','Cargo'],
+            ['rol','Rol Sistema'],['area','Área'],['celular','Celular'],
+            ['extension','Extensión'],['activo','Activo'],
+            ['fecha_creacion','F. Creación'],
+        ]
+    },
+    {
+        key: 'ubicaciones', label: 'Ubicaciones', icon: '📍',
+        endpoint: '/ubicaciones', sheet: 'Ubicaciones',
+        esGestion: true,
+        cols: [
+            ['Nombre_ubicacion','Nombre Ubicación'],['Area','Área'],['piso','Piso'],
+            ['icono','Icono'],['color','Color'],['descripcion','Descripción'],
+            ['activo','Activo'],['fecha_creacion','F. Creación'],
+        ]
+    },
+];
+
+const ALL_EXPORTABLES = [...EQUIPOS, ...GESTION];
+const TIPO_LABEL = {
+    COMPUTADOR:'Computador', CELULAR:'Celular', IMPRESORA:'Impresora',
+    RADIO:'Radio', TELEFONO_IP:'Teléfono IP', TABLET:'Tablet', ACCESORIO:'Accesorio'
+};
+
+/* ════════════════════════════════════════════════════════════
+   RENDERIZAR GRID DE TARJETAS
+   ════════════════════════════════════════════════════════════ */
+async function initExportCards() {
+    const grid = document.getElementById('equipGrid');
+
+    /* Skeleton */
+    grid.innerHTML = `
+        <div class="grid-section-label">Equipos TI</div>
+        ${EQUIPOS.map(e => cardSkeleton(e)).join('')}
+        <div class="grid-section-label" style="margin-top:.5rem;">Gestión</div>
+        ${GESTION.map(e => cardSkeleton(e)).join('')}
+    `;
+
+    /* Cargar counts en paralelo */
+    const results = await Promise.allSettled(
+        ALL_EXPORTABLES.map(e => API.request(e.endpoint))
+    );
+
+    /* Construir HTML real */
+    const equipoCards   = EQUIPOS.map((e, i) => cardHTML(e, results[i], false));
+    const gestionCards  = GESTION.map((e, i) => cardHTML(e, results[EQUIPOS.length + i], true));
+
+    grid.innerHTML = `
+        <div class="grid-section-label">Equipos TI</div>
+        ${equipoCards.join('')}
+        <div class="grid-section-label" style="margin-top:.5rem;">Gestión</div>
+        ${gestionCards.join('')}
+    `;
+}
+
+function cardSkeleton(e) {
+    return `<div class="equip-card" style="opacity:.35;pointer-events:none;">
+        <div class="equip-card-top">
+            <div class="equip-icon">${e.icon}</div>
+            <div><div class="equip-info-name">${e.label}</div>
+                 <div class="equip-info-count">Cargando…</div></div>
+        </div>
+        <div class="btn-dl" style="opacity:.4;">— registros</div>
+    </div>`;
+}
+
+function cardHTML(e, result, esGestion) {
+    const count = (result.status === 'fulfilled' && result.value?.data)
+        ? result.value.data.length : 0;
+    const noData = count === 0;
+    const iconClass = esGestion ? 'equip-icon icon-gestión' : 'equip-icon';
+    return `
+        <div class="equip-card" id="card-${e.key}">
+            <div class="equip-card-top">
+                <div class="${iconClass}">${e.icon}</div>
+                <div>
+                    <div class="equip-info-name">${e.label}</div>
+                    <div class="equip-info-count"><span id="count-${e.key}">${count}</span> registros</div>
+                </div>
+            </div>
+            <button class="btn-dl" id="btn-${e.key}" onclick="exportSingle('${e.key}')"
+                ${noData ? 'disabled title="Sin registros"' : ''}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Descargar .xlsx
+            </button>
+        </div>`;
+}
+
+/* ════════════════════════════════════════════════════════════
+   GENERAR HOJA EXCEL CON ESTILO
+   ════════════════════════════════════════════════════════════ */
+function buildSheet(data, colDefs) {
+    const rows = data.map(row => {
+        const r = {};
+        colDefs.forEach(([field, header]) => {
+            let val = row[field];
+            if (val === true  || val === 1) val = 'Sí';
+            if (val === false || val === 0) val = 'No';
+            if (val === null  || val === undefined) val = '';
+            r[header] = val;
+        });
+        return r;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+    /* Ancho de columnas */
+    ws['!cols'] = colDefs.map(([, h]) => ({ wch: Math.max(h.length + 2, 13) }));
+
+    /* Estilo cabecera */
+    for (let C = range.s.c; C <= range.e.c; C++) {
+        const ref = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!ws[ref]) continue;
+        ws[ref].s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' }, name: 'Arial', sz: 10 },
+            fill:      { patternType: 'solid', fgColor: { rgb: '1A2235' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border:    { bottom: { style: 'medium', color: { rgb: '2B7FFF' } } }
+        };
+    }
+
+    /* Estilo filas alternas */
+    for (let R = 1; R <= range.e.r; R++) {
+        for (let C = range.s.c; C <= range.e.c; C++) {
+            const ref = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+            ws[ref].s = {
+                font:      { name: 'Arial', sz: 9 },
+                fill:      R % 2 === 0 ? { patternType: 'solid', fgColor: { rgb: 'EEF3FB' } } : {},
+                alignment: { vertical: 'center' }
+            };
+        }
+    }
+
+    /* Fila de total */
+    const totRow = range.e.r + 2;
+    const totRef = XLSX.utils.encode_cell({ r: totRow, c: 0 });
+    ws[totRef] = {
+        t: 's',
+        v: `Total: ${data.length} registro${data.length !== 1 ? 's' : ''}`,
+        s: { font: { bold: true, italic: true, name: 'Arial', sz: 9, color: { rgb: '7A8BA8' } } }
+    };
+
+    return ws;
+}
+
+/* ════════════════════════════════════════════════════════════
+   EXPORTAR UN SOLO TIPO
+   ════════════════════════════════════════════════════════════ */
+async function exportSingle(key) {
+    const cfg = ALL_EXPORTABLES.find(e => e.key === key);
+    if (!cfg) return;
+
+    const btn = document.getElementById(`btn-${key}`);
+    const origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loader"></span> Generando…';
+
+    try {
+        const res  = await API.request(cfg.endpoint);
+        const data = res.data || [];
+
+        if (!data.length) { showWarning(`Sin registros de ${cfg.label} para exportar.`); return; }
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, buildSheet(data, cfg.cols), cfg.sheet);
+
+        /* Hoja Info */
+        const wsInfo = XLSX.utils.aoa_to_sheet([
+            ['TICS — AEROPUERTO OPAM'],
+            ['Reporte de Inventario'],
+            [],
+            ['Tipo:',            cfg.label],
+            ['Total registros:', data.length],
+            ['Exportado:',       new Date().toLocaleString('es-CO')],
+            ['Por:',             _nombreUsuario()],
+        ]);
+        wsInfo['!cols'] = [{ wch: 18 }, { wch: 35 }];
+        XLSX.utils.book_append_sheet(wb, wsInfo, 'Info');
+
+        XLSX.writeFile(wb, `TICS_${cfg.sheet}_${_fechaHoy()}.xlsx`,
+            { bookType: 'xlsx', type: 'binary', cellStyles: true });
+        showSuccess(`✅ ${cfg.label} exportado — ${data.length} registros`);
+    } catch(err) {
+        showError('Error al exportar: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════
+   EXPORTAR TODO (un Excel, todas las hojas)
+   ════════════════════════════════════════════════════════════ */
+async function exportAll() {
+    const btn      = document.getElementById('btnExportAll');
+    const progWrap = document.getElementById('allProgressWrap');
+    const progBar  = document.getElementById('allProgressBar');
+    const progLbl  = document.getElementById('allProgressLabel');
+    const total    = ALL_EXPORTABLES.length;
+
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="loader"></span> Recopilando…';
+    progWrap.classList.add('visible');
+
+    const wb       = XLSX.utils.book_new();
+    const resumen  = [
+        ['TICS — AEROPUERTO OPAM — Inventario Completo'],
+        ['Exportado:', new Date().toLocaleString('es-CO')],
+        ['Por:', _nombreUsuario()],
+        [],
+        ['Hoja', 'Registros', 'Estado'],
+    ];
+    let totalReg = 0;
+
+    for (let i = 0; i < ALL_EXPORTABLES.length; i++) {
+        const cfg = ALL_EXPORTABLES[i];
+        try {
+            const res  = await API.request(cfg.endpoint);
+            const data = res.data || [];
+            XLSX.utils.book_append_sheet(wb, buildSheet(data, cfg.cols), cfg.sheet);
+            resumen.push([cfg.label, data.length, '✓ OK']);
+            totalReg += data.length;
+        } catch(e) {
+            resumen.push([cfg.label, 0, '⚠ Error']);
+        }
+        const pct = Math.round(((i + 1) / total) * 100);
+        progBar.style.width   = pct + '%';
+        progLbl.textContent   = `${i + 1} / ${total}`;
+    }
+
+    resumen.push([], ['TOTAL', totalReg, '']);
+    const wsRes = XLSX.utils.aoa_to_sheet(resumen);
+    wsRes['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }];
+    wb.SheetNames.unshift('Resumen');
+    wb.Sheets['Resumen'] = wsRes;
+
+    XLSX.writeFile(wb, `TICS_InventarioCompleto_${_fechaHoy()}.xlsx`,
+        { bookType: 'xlsx', type: 'binary', cellStyles: true });
+    showSuccess(`✅ Inventario completo — ${totalReg} registros totales`);
+
+    btn.disabled  = false;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg> Descargar Todo (.xlsx)`;
+    setTimeout(() => progWrap.classList.remove('visible'), 2500);
+}
+
+/* ════════════════════════════════════════════════════════════
+   HISTORIAL — estado global
+   ════════════════════════════════════════════════════════════ */
+let histPage  = 1;   // página actual
+let histTotal = 0;   // total de registros (del backend)
+
+/* ── Cargar historial ────────────────────────────────────── */
+async function loadHistorial() {
+    const limit      = parseInt(document.getElementById('histLimit').value) || 10;
+    const tipoEquipo = document.getElementById('filtroTipoEquipo').value;
+    const tipoAccion = document.getElementById('filtroAccion').value;
+    const offset     = (histPage - 1) * limit;
+
+    /* Título dinámico */
+    const titleEl = document.getElementById('histTitleCount');
+    if (titleEl) titleEl.textContent = `últimos ${limit}`;
+
+    const tbody  = document.getElementById('historialBody');
+    const footer = document.getElementById('historialFooter');
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="7"><div class="loader"></div></td></tr>`;
+    footer.innerHTML = '';
+
+    const params = new URLSearchParams({ limit, offset });
+    if (tipoEquipo) params.set('tipo_equipo', tipoEquipo);
+    if (tipoAccion) params.set('tipo_accion', tipoAccion);
+
+    try {
+        const res  = await API.request('/historial?' + params.toString());
+        const data = res.data  || [];
+        histTotal  = res.total || 0;
+
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="7">
+                <div class="hist-empty">
+                    <div class="hist-empty-icon">🕐</div>
+                    <div class="hist-empty-title">No se han realizado cambios aún</div>
+                    <div class="hist-empty-sub">
+                        Los registros aparecerán aquí cuando se realicen acciones sobre
+                        equipos: asignaciones, devoluciones, mantenimientos, etc.
+                    </div>
+                </div>
+            </td></tr>`;
+            document.getElementById('histPaginacion').style.display = 'none';
+            footer.innerHTML = '<span>Sin registros en el historial</span>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(h => {
+            const accion = (h.tipo_accion || '').toLowerCase().replace(/\s/g, '');
+            const fecha  = h.fecha_accion
+                ? new Date(h.fecha_accion).toLocaleString('es-CO',
+                    { dateStyle: 'short', timeStyle: 'short' })
+                : '—';
+            return `<tr class="animate-fade">
+                <td>
+                    <div style="font-weight:500;font-size:.8rem;">${fecha}</div>
+                    <div style="font-size:.67rem;color:var(--clr-text-faint);font-family:var(--font-mono);">
+                        ID&nbsp;${h.id_equipo || '—'}
+                    </div>
+                </td>
+                <td><span class="tipo-chip">${TIPO_LABEL[h.tipo_equipo] || h.tipo_equipo || '—'}</span></td>
+                <td><span class="badge badge-${accion}">${h.tipo_accion || '—'}</span></td>
+                <td class="col-hide-mobile">${h.nombre_persona || '<span class="text-faint">—</span>'}</td>
+                <td class="col-hide-mobile">${h.Nombre_ubicacion || '<span class="text-faint">—</span>'}</td>
+                <td class="col-hide-mobile">
+                    <span class="font-mono" style="font-size:.75rem;">${h.realizado_por || '<span class="text-faint">—</span>'}</span>
+                </td>
+                <td style="max-width:180px;white-space:normal;font-size:.77rem;color:var(--clr-text-muted);">
+                    ${h.razon || '<span class="text-faint" style="font-size:.72rem;">Sin motivo registrado</span>'}
+                </td>
+            </tr>`;
+        }).join('');
+
+        /* Paginación */
+        _renderHistPag(limit);
+
+        /* Footer info */
+        const desde = offset + 1;
+        const hasta = Math.min(offset + data.length, histTotal);
+        footer.innerHTML = `
+            <span>Mostrando <strong>${desde}–${hasta}</strong> de <strong>${histTotal}</strong> registros</span>
+            <span style="color:var(--clr-text-faint);">
+                Página ${histPage} / ${Math.ceil(histTotal / limit)}
+            </span>`;
+
+    } catch(err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-muted"
+            style="text-align:center;padding:2rem;font-size:.82rem;">
+            Error al cargar historial: ${err.message}
+        </td></tr>`;
+    }
+}
+
+/* ── Renderizar paginación del historial ─────────────────── */
+function _renderHistPag(limit) {
+    const totalPages = Math.ceil(histTotal / limit);
+    const wrap       = document.getElementById('histPaginacion');
+
+    if (totalPages <= 1) {
+        wrap.style.display = 'none';
+        return;
+    }
+    wrap.style.display = 'block';
+
+    /* Rango de páginas visibles (ventana de 5) */
+    let start = Math.max(1, histPage - 2);
+    let end   = Math.min(totalPages, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+
+    const icon = (dir) => dir === 'prev'
+        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>`
+        : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+    let html = `
+        <button class="h-pg-btn" onclick="_goHist(${histPage - 1})"
+            ${histPage <= 1 ? 'disabled' : ''}>
+            ${icon('prev')} Anterior
+        </button>`;
+
+    if (start > 1) {
+        html += `<button class="h-pg-btn" onclick="_goHist(1)">1</button>`;
+        if (start > 2) html += `<span class="h-pg-dots">…</span>`;
+    }
+
+    for (let p = start; p <= end; p++) {
+        html += `<button class="h-pg-btn ${p === histPage ? 'h-pg-active' : ''}"
+            onclick="_goHist(${p})">${p}</button>`;
+    }
+
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += `<span class="h-pg-dots">…</span>`;
+        html += `<button class="h-pg-btn" onclick="_goHist(${totalPages})">${totalPages}</button>`;
+    }
+
+    html += `
+        <button class="h-pg-btn" onclick="_goHist(${histPage + 1})"
+            ${histPage >= totalPages ? 'disabled' : ''}>
+            Siguiente ${icon('next')}
+        </button>`;
+
+    wrap.querySelector('.h-pagination').innerHTML = html;
+}
+
+function _goHist(page) {
+    const limit = parseInt(document.getElementById('histLimit').value) || 10;
+    const total = Math.ceil(histTotal / limit);
+    if (page < 1 || page > total) return;
+    histPage = page;
+    loadHistorial();
+    /* Scroll suave al inicio de la sección */
+    document.getElementById('historialBody')
+        .closest('section')
+        .scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ════════════════════════════════════════════════════════════
+   EXPORTAR HISTORIAL COMPLETO A EXCEL
+   ════════════════════════════════════════════════════════════ */
+async function exportHistorial() {
+    try {
+        /* Cargar todos los registros — el fix de TiDB en Historial.js
+           permite ahora usar limit grande sin error */
+        const res  = await API.request('/historial?limit=5000&offset=0');
+        const data = res.data || [];
+
+        if (!data.length) { showWarning('No hay registros en el historial para exportar.'); return; }
+
+        const rows = data.map(h => ({
+            'Fecha / Hora':      h.fecha_accion
+                ? new Date(h.fecha_accion).toLocaleString('es-CO') : '—',
+            'Tipo Equipo':       TIPO_LABEL[h.tipo_equipo] || h.tipo_equipo || '—',
+            'ID Equipo':         h.id_equipo  || '—',
+            'Acción':            h.tipo_accion || '—',
+            'Persona':           h.nombre_persona   || '—',
+            'Ubicación':         h.Nombre_ubicacion || '—',
+            'Realizado por':     h.realizado_por    || '—',
+            'Motivo':            h.razon            || '—',
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [
+            { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 18 },
+            { wch: 28 }, { wch: 22 }, { wch: 18 }, { wch: 40 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'Historial');
+        XLSX.writeFile(wb, `TICS_Historial_${_fechaHoy()}.xlsx`);
+        showSuccess(`✅ Historial exportado — ${data.length} registros`);
+    } catch(err) {
+        showError('Error al exportar historial: ' + err.message);
+    }
+}
+
+/* ── Helpers ── */
+function _fechaHoy() { return new Date().toISOString().split('T')[0]; }
+function _nombreUsuario() {
+    try {
+        const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+        return u.nombre || u.username || 'Sistema';
+    } catch { return 'Sistema'; }
+}
+
+/* ── Init ── */
+loadComponents('export');
+initExportCards();
+loadHistorial();
+</script>
+</body>
+</html>

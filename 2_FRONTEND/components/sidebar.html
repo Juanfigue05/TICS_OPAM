@@ -1,95 +1,86 @@
-<!-- ============================================================================
-     COMPONENTE: sidebar.html
-     DESCRIPCIÓN: Barra lateral de navegación — se carga vía loadComponents()
-     USO EN PÁGINA:
-       1. Agregar al <body>: <div id="sidebar-placeholder"></div>
-       2. Llamar en el script:  loadComponents('/pages/miPagina.html');
-     ============================================================================ -->
-
-<aside class="gate-sidebar" id="mainSidebar">
-
-    <!-- SECCIÓN: MENÚ PRINCIPAL -->
-    <div class="sidebar-section">
-        <p class="section-title">Panel principal</p>
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="../pages/dashboard.html" class="nav-link" data-page="../pages/dashboard.html">
-                    📊 Dashboard
-                </a>
-            </li>
-        </ul>
+<aside class="app-sidebar" id="mainSidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">✈</div>
+        <div class="sidebar-brand-text">
+            <span class="sidebar-brand-name">TICS</span>
+            <span class="sidebar-brand-sub">Aeropuerto OPAM</span>
+        </div>
     </div>
+    <nav class="sidebar-nav">
+        <span class="sidebar-section-label">Panel</span>
+        <a href="/pages/dashboard.html" class="nav-link" data-page="dashboard">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>Dashboard</span>
+        </a>
 
-    <!-- SECCIÓN: EQUIPOS -->
-    <div class="sidebar-section">
-        <p class="section-title">Equipos</p>
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="../pages/computador.html" class="nav-link" data-page="../pages/computador.html">
-                    💻 Computadores
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="../pages/celular.html" class="nav-link" data-page="../pages/celular.html">
-                    📱 Celulares
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="../pages/impresora.html" class="nav-link" data-page="../pages/impresora.html">
-                    🖨️ Impresoras
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="../pages/radio.html" class="nav-link" data-page="../pages/radio.html">
-                    📻 Radios
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="../pages/telefono_ip.html" class="nav-link" data-page="../pages/telefono_ip.html">
-                    📞 Teléfonos IP
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="../pages/tablet.html" class="nav-link" data-page="../pages/tablet.html">
-                    📲 Tablets
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="../pages/accesorios.html" class="nav-link" data-page="../pages/accesorios.html">
-                    🔌 Accesorios
-                </a>
-            </li>
-        </ul>
+        <span class="sidebar-section-label">Equipos</span>
+        <a href="/pages/computador.html" class="nav-link" data-page="computador">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>Computadores</span>
+        </a>
+        <a href="/pages/celular.html" class="nav-link" data-page="celular">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <span>Celulares</span>
+        </a>
+        <a href="/pages/impresora.html" class="nav-link" data-page="impresora">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Impresoras</span>
+        </a>
+        <a href="/pages/radio.html" class="nav-link" data-page="radio">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></svg>
+            <span>Radios</span>
+        </a>
+        <a href="/pages/telefono_ip.html" class="nav-link" data-page="telefono_ip">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5.06 2 2 0 0 1 3.58 3h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.73 2.81a2 2 0 0 1-.45 2.11L7.91 10.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.91.36 1.85.6 2.81.73A2 2 0 0 1 22 16.92z"/></svg>
+            <span>Teléfonos IP</span>
+        </a>
+        <a href="/pages/tablet.html" class="nav-link" data-page="tablet">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <span>Tablets</span>
+        </a>
+        <a href="/pages/accesorios.html" class="nav-link" data-page="accesorios">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+            <span>Accesorios</span>
+        </a>
+
+        <span class="sidebar-section-label">Gestión</span>
+        <a href="/pages/persona.html" class="nav-link" data-page="persona">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Personas</span>
+        </a>
+        <a href="/pages/ubicacion.html" class="nav-link" data-page="ubicacion">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>Ubicaciones</span>
+        </a>
+
+        <span class="sidebar-section-label">Reportes</span>
+        <a href="/pages/export.html" class="nav-link" data-page="export">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+            <span>Exportar / Historial</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="sidebar-status">
+            <div class="status-pulse"></div>
+            <span>Sistema Activo · v3.1</span>
+        </div>
     </div>
-
-    <!-- SECCIÓN: GESTIÓN -->
-    <div class="sidebar-section">
-        <p class="section-title">Gestión</p>
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="../pages/persona.html" class="nav-link" data-page="../pages/persona.html">
-                    👥 Personas
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="../pages/ubicacion.html" class="nav-link" data-page="../pages/ubicacion.html">
-                    📍 Ubicaciones
-                </a>
-            </li>
-        </ul>
-    </div>
-
-    <!-- VERSIÓN -->
-    <div style="
-        margin-top: auto;
-        padding-top: var(--spacing-xl);
-        border-top: 1px solid rgba(255,255,255,0.08);
-    ">
-        <p style="
-            font-size: var(--text-xs);
-            color: var(--gray-600);
-            text-align: center;
-        ">TICS Sistema · v2.0.0</p>
-    </div>
-
 </aside>
+
+<script>
+function setActiveNavLink() {
+    const path = window.location.pathname;
+    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+        const page = link.getAttribute('data-page');
+        if (page && path.includes(page)) link.classList.add('active');
+    });
+}
+document.addEventListener('DOMContentLoaded', setActiveNavLink);
+// También ejecutar directo por si DOMContentLoaded ya pasó
+setActiveNavLink();
+</script>

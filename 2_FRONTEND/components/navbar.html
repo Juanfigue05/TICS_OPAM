@@ -1,85 +1,101 @@
-<!-- ============================================================================
-     COMPONENTE: navbar.html
-     DESCRIPCIÓN: Barra de navegación superior — se carga vía loadComponents()
-     USO EN PÁGINA:
-       1. Agregar al <body>: <div id="navbar-placeholder"></div>
-       2. Llamar en el script:  loadComponents('nombre-pagina-activa');
-     ============================================================================ -->
+<header class="app-navbar" id="mainNavbar">
 
-<header class="terminal-header" id="mainNavbar">
+    <!-- Botón hamburguesa (solo visible en móvil ≤768px) -->
+    <button class="btn-menu-toggle" id="menuToggleBtn"
+            onclick="toggleSidebar()" aria-label="Abrir menú">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6"  x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+    </button>
 
-    <!-- LOGO Y TÍTULO -->
-    <div class="logo-section">
-        <span style="font-size: 1.75rem; line-height:1;">✈️</span>
-        <div>
-            <h1 style="font-size: var(--text-lg); font-weight: 700; color: var(--airport-primary); margin:0;">
-                TICS Aeropuerto
-            </h1>
-            <p style="font-size: var(--text-xs); color: var(--gray-500); margin:0;">
-                Gestión de Inventario TI
-            </p>
-        </div>
-    </div>
+    <!-- Breadcrumb -->
+    <nav class="navbar-breadcrumb" id="navBreadcrumb" aria-label="Ruta">
+        <span>TICS</span>
+        <span class="bc-sep">›</span>
+        <span class="bc-current" id="bcCurrent">Panel</span>
+    </nav>
 
-    <!-- CENTRO: breadcrumb dinámico -->
-    <div id="navBreadcrumb" style="
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: var(--text-sm);
-        color: var(--gray-500);
-    ">
-        <span>OPAM · Aeropuerto Alfonso Bonilla Aragón</span>
-    </div>
-
-    <!-- ACCIONES DERECHA -->
-    <div class="header-actions">
-
-        <!-- Nombre del usuario -->
-        <div style="
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 0;
-        ">
-            <span id="navUserName" style="
-                font-size: var(--text-sm);
-                font-weight: 600;
-                color: var(--gray-800);
-            ">Cargando...</span>
-            <span id="navUserRole" style="
-                font-size: var(--text-xs);
-                color: var(--gray-500);
-                text-transform: capitalize;
-            "></span>
+    <!-- Usuario + Salir -->
+    <div class="navbar-right">
+        <div class="navbar-user" id="navUserWrap">
+            <div class="nav-user-info">
+                <span class="nav-user-name" id="navUserName">—</span>
+                <span class="nav-user-role" id="navUserRole"></span>
+            </div>
+            <div class="nav-user-avatar" id="navAvatar">?</div>
         </div>
 
-        <!-- Avatar inicial -->
-        <div id="navAvatar" style="
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--airport-primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: var(--text-sm);
-            cursor: default;
-            flex-shrink: 0;
-        ">–</div>
-
-        <!-- Botón cerrar sesión -->
-        <button
-            class="btn btn-secondary btn-sm"
-            onclick="logout()"
-            title="Cerrar sesión"
-            style="display:flex; align-items:center; gap:0.25rem;"
-        >
-            🚪 Salir
+        <button class="btn-logout" onclick="window.logout && logout()" title="Cerrar sesión">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span>Salir</span>
         </button>
-
     </div>
-
 </header>
+
+<!-- Overlay oscuro para cerrar sidebar en móvil -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<script>
+// ── Sidebar toggle ──────────────────────────────────────────────────────────
+function toggleSidebar() {
+    var s = document.getElementById('mainSidebar');
+    var o = document.getElementById('sidebarOverlay');
+    if (!s) return;
+    var open = s.classList.toggle('open');
+    if (o) o.classList.toggle('visible', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function closeSidebar() {
+    var s = document.getElementById('mainSidebar');
+    var o = document.getElementById('sidebarOverlay');
+    if (s) s.classList.remove('open');
+    if (o) o.classList.remove('visible');
+    document.body.style.overflow = '';
+}
+
+// Cerrar con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeSidebar();
+});
+
+// ── Inicialización del navbar ───────────────────────────────────────────────
+// IMPORTANTE: NO usar DOMContentLoaded — este script se ejecuta DESPUÉS de
+// que el componente ya fue inyectado en el DOM via _executeScripts(),
+// por lo que DOMContentLoaded ya se disparó mucho antes.
+// Llamamos loadUserInfo() directamente si ya está disponible.
+// ───────────────────────────────────────────────────────────────────────────
+(function initNavbarUser() {
+    // loadUserInfo está definida en components.js que carga antes que el navbar
+    if (typeof loadUserInfo === 'function') {
+        loadUserInfo();
+    } else {
+        // Fallback: intentar con localStorage directamente
+        try {
+            var stored = localStorage.getItem('usuario');
+            if (stored) {
+                var u = JSON.parse(stored);
+                var nameEl   = document.getElementById('navUserName');
+                var roleEl   = document.getElementById('navUserRole');
+                var avatarEl = document.getElementById('navAvatar');
+                var roles = {
+                    admin:'Administrador', ADMINISTRADOR:'Administrador',
+                    technician:'Técnico TICS', TICS:'Técnico TICS',
+                    viewer:'Visitante', VISITANTE:'Visitante'
+                };
+                if (nameEl)   nameEl.textContent   = u.nombre || u.username || '—';
+                if (roleEl)   roleEl.textContent   = roles[u.rol] || roles[u.rol_db] || '';
+                if (avatarEl) avatarEl.textContent = (u.nombre || u.username || '?')
+                    .split(' ').filter(Boolean).map(function(n){ return n[0]; })
+                    .slice(0,2).join('').toUpperCase();
+            }
+        } catch(e) {}
+    }
+})();
+</script>

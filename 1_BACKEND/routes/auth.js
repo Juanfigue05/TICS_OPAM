@@ -90,7 +90,9 @@ router.post('/login', async (req, res) => {
             id_persona: usuario.id_persona
         };
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_secreta_super_segura_aqui';
+        const token = jwt.sign(payload, JWT_SECRET, {
+
             expiresIn: process.env.JWT_EXPIRES_IN || '8h'
         });
 

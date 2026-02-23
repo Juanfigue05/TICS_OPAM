@@ -3,103 +3,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - TICS Aeropuerto</title>
+    <title>Dashboard — TICS Aeropuerto</title>
     <link rel="stylesheet" href="../assets/css/airport-theme.css">
+    <style>
+        /* ── Layout interno del dashboard ── */
+        .dash-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .dash-grid .card-full { grid-column: 1 / -1; }
+
+        /* Separador visual entre equipos y gestión en stats */
+        .stats-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 0.75rem 0 0.25rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--clr-text-faint);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .stats-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--clr-border);
+        }
+
+        /* Card de stat de personas distinto */
+        .stat-card.stat-gestión .stat-icon { background: rgba(168,85,247,0.15); }
+        .stat-card.stat-gestión:hover { border-color: rgba(168,85,247,0.3); }
+        .stat-card.stat-gestión:hover::before {
+            background: linear-gradient(90deg, #a855f7, var(--clr-primary));
+        }
+
+        /* Stat total resaltado */
+        .stat-card.stat-total { border-color: rgba(43,127,255,0.25); background: linear-gradient(135deg, rgba(43,127,255,0.08), rgba(0,212,255,0.05)); }
+        .stat-card.stat-total .stat-value { color: var(--clr-primary); }
+        .stat-card.stat-total .stat-label { color: var(--clr-primary); }
+        .stat-card.stat-total .stat-icon  { background: rgba(43,127,255,0.2); }
+
+        /* Estado del sistema */
+        .sys-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid var(--clr-border);
+            font-size: 0.82rem;
+        }
+        .sys-row:last-child { border-bottom: none; }
+        .sys-label { color: var(--clr-text-muted); flex: 1; }
+        .sys-value { font-weight: 600; }
+
+        /* Accesos rápidos grid */
+        .quick-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        .quick-link {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.55rem 0.75rem;
+            border-radius: var(--r-sm);
+            background: var(--clr-surface-2);
+            border: 1px solid var(--clr-border);
+            color: var(--clr-text-muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all var(--tr-fast);
+        }
+        .quick-link:hover {
+            background: var(--clr-surface-3);
+            border-color: var(--clr-border-light);
+            color: var(--clr-text);
+            transform: translateX(2px);
+        }
+        .quick-link svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--clr-primary); }
+
+        @media (max-width: 768px) {
+            .dash-grid { grid-template-columns: 1fr; }
+            .quick-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 480px) {
+            .quick-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
-    <div class="airport-layout">
-        <!-- HEADER -->
-        <header class="terminal-header">
-            <div class="logo-section">
-                <h1>✈️ TICS Aeropuerto</h1>
-            </div>
-            <div class="header-actions">
-                <span id="userInfo" class="text-gray">Cargando...</span>
-                <button class="btn btn-secondary" onclick="logout()">🚪 Salir</button>
-            </div>
-        </header>
+<div class="airport-layout">
+    <div id="sidebar-placeholder"></div>
+    <div id="navbar-placeholder"></div>
 
-        
-    <aside class="gate-sidebar">
-        <div class="sidebar-section">
-            <p class="section-title">Panel</p>
-            <ul class="nav-menu"><li class="nav-item"><a href="dashboard.html" class="nav-link active">📊 Dashboard</a></li></ul>
-        </div>
-        <div class="sidebar-section">
-            <p class="section-title">Equipos</p>
-            <ul class="nav-menu">
-                <li class="nav-item"><a href="computador.html"  class="nav-link ">💻 Computadores</a></li>
-                <li class="nav-item"><a href="celular.html"     class="nav-link">📱 Celulares</a></li>
-                <li class="nav-item"><a href="impresora.html"   class="nav-link">🖨️ Impresoras</a></li>
-                <li class="nav-item"><a href="radio.html"       class="nav-link">📻 Radios</a></li>
-                <li class="nav-item"><a href="telefono_ip.html" class="nav-link">📞 Teléfonos IP</a></li>
-                <li class="nav-item"><a href="tablet.html"      class="nav-link">📲 Tablets</a></li>
-                <li class="nav-item"><a href="accesorios.html"  class="nav-link">🔌 Accesorios</a></li>
-            </ul>
-        </div>
-        <div class="sidebar-section">
-            <p class="section-title">Gestión</p>
-            <ul class="nav-menu">
-                <li class="nav-item"><a href="persona.html"   class="nav-link">👥 Personas</a></li>
-                <li class="nav-item"><a href="ubicacion.html" class="nav-link">📍 Ubicaciones</a></li>
-            </ul>
-        </div>
-    </aside>
+    <main class="app-main">
 
-        <!-- MAIN CONTENT -->
-        <main class="boarding-area">
-            <div class="flight-board">
-                <div class="flight-board-header">
-                    <h2 class="flight-board-title">Panel de Control</h2>
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--clr-primary)" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    Dashboard
+                </h1>
+                <p class="page-subtitle">Resumen del inventario TI activo</p>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                Actualizar
+            </button>
+        </div>
+
+        <!-- Equipos -->
+        <div class="stats-divider">Equipos TI</div>
+        <div class="stats-grid" id="statsEquipos" style="margin-bottom:.5rem;">
+            <!-- skeleton -->
+            <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
+            <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
+            <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
+            <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
+        </div>
+
+        <!-- Gestión -->
+        <div class="stats-divider">Gestión</div>
+        <div class="stats-grid" id="statsGestion" style="margin-bottom:.5rem;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));">
+            <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
+        </div>
+
+        <!-- Grilla inferior -->
+        <div class="dash-grid">
+
+            <!-- Estado del sistema -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Estado del Sistema</span>
+                    <span id="lastUpdate" class="text-faint font-mono" style="font-size:.7rem;"></span>
                 </div>
-
-                <!-- ESTADÍSTICAS -->
-                <div class="stats-grid" id="statsContainer"></div>
-
-                <!-- INFO -->
-                <div class="boarding-pass mt-4">
-                    <div class="boarding-pass-body" style="grid-template-columns: 1fr;">
-                        <div>
-                            <h3 class="font-semibold mb-2">Bienvenido al Sistema</h3>
-                            <p class="text-gray">Sistema de Gestión de Inventario TICS - Aeropuerto Alfonso Bonilla Aragón</p>
-                            <p class="mt-2">Total equipos: <strong id="totalEquipos">--</strong></p>
-                        </div>
+                <div id="sysStatusRows">
+                    <div class="sys-row"><span class="status-pulse"></span><span class="sys-label">Servidor API</span><span class="sys-value text-success">Activo</span></div>
+                    <div class="sys-row"><span class="status-pulse"></span><span class="sys-label">Base de Datos TiDB</span><span class="sys-value" id="dbStatus" style="color:var(--clr-text-faint);">Verificando...</span></div>
+                    <div class="sys-row">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--clr-text-faint)" stroke-width="2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span class="sys-label">Zona horaria</span>
+                        <span class="sys-value text-muted">America/Bogotá</span>
+                    </div>
+                    <div class="sys-row">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--clr-text-faint)" stroke-width="2" style="flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <span class="sys-label">Autenticación JWT</span>
+                        <span class="sys-value text-success">Activa</span>
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
 
-    <script src="../assets/js/api.js"></script>
-    <script>
-        async function loadDashboard() {
-            try {
-                const userRes = await API.getMe();
-                if (userRes.success) document.getElementById('userInfo').textContent = userRes.data.nombre;
+            <!-- Accesos rápidos -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Accesos Rápidos</span>
+                </div>
+                <div class="quick-grid">
+                    <a href="/pages/computador.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        Computadores
+                    </a>
+                    <a href="/pages/celular.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                        Celulares
+                    </a>
+                    <a href="/pages/impresora.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                        Impresoras
+                    </a>
+                    <a href="/pages/radio.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></svg>
+                        Radios
+                    </a>
+                    <a href="/pages/telefono_ip.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5.06 2 2 0 0 1 3.58 3h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.73 2.81a2 2 0 0 1-.45 2.11L7.91 10.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.91.36 1.85.6 2.81.73A2 2 0 0 1 22 16.92z"/></svg>
+                        Teléfonos IP
+                    </a>
+                    <a href="/pages/tablet.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                        Tablets
+                    </a>
+                    <a href="/pages/accesorios.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                        Accesorios
+                    </a>
+                    <a href="/pages/persona.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Personas
+                    </a>
+                    <a href="/pages/ubicacion.html" class="quick-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Ubicaciones
+                    </a>
+                </div>
+            </div>
 
-                const statsRes = await API.getStats();
-                if (statsRes.success) {
-                    const s = statsRes.data;
-                    document.getElementById('totalEquipos').textContent = s.total || 0;
-                    document.getElementById('statsContainer').innerHTML = `
-                        ${statCard('Computadores', s.computadores, '💻', 'status-active')}
-                        ${statCard('Celulares', s.celulares, '📱', 'status-maintenance')}
-                        ${statCard('Impresoras', s.impresoras, '🖨️', 'color-info')}
-                        ${statCard('Radios', s.radios, '📻', 'color-warning')}
-                        ${statCard('Teléfonos IP', s.telefonos_ip, '📞', 'airport-accent')}
-                        ${statCard('Tablets', s.tablets, '📲', 'color-danger')}
-                        ${statCard('Personas', s.personas, '👥', 'gray-700')}
-                    `;
-                }
-            } catch (error) {
-                console.error('Error:', error);
-            }
+        </div><!-- /dash-grid -->
+    </main>
+
+    <div id="footer-placeholder"></div>
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+/* ── Config stats equipos ── */
+const EQUIPOS_STATS = [
+    { key: 'computadores',  label: 'Computadores',  icon: '💻', href: '/pages/computador.html' },
+    { key: 'celulares',     label: 'Celulares',     icon: '📱', href: '/pages/celular.html'    },
+    { key: 'impresoras',    label: 'Impresoras',    icon: '🖨️', href: '/pages/impresora.html'  },
+    { key: 'radios',        label: 'Radios',        icon: '📻', href: '/pages/radio.html'      },
+    { key: 'telefonos_ip',  label: 'Teléfonos IP',  icon: '📞', href: '/pages/telefono_ip.html'},
+    { key: 'tablets',       label: 'Tablets',       icon: '📲', href: '/pages/tablet.html'     },
+    { key: 'accesorios',    label: 'Accesorios',    icon: '🔌', href: '/pages/accesorios.html' },
+];
+
+/* ── Personas viene de /personas (activo=true, boolean en BD) ── */
+async function loadDashboard() {
+    try {
+        /* Lanzar ambas peticiones en paralelo */
+        const [statsRes, personasRes] = await Promise.all([
+            API.request('/stats'),
+            API.request('/personas')
+        ]);
+
+        /* ─ Stats de equipos ─ */
+        if (statsRes.success) {
+            const s = statsRes.data;
+            const totalEquipos = EQUIPOS_STATS.reduce((acc, c) => acc + (Number(s[c.key]) || 0), 0);
+
+            document.getElementById('statsEquipos').innerHTML =
+                EQUIPOS_STATS.map(cfg => `
+                    <a href="${cfg.href}" class="stat-card" style="text-decoration:none;">
+                        <div class="stat-icon">${cfg.icon}</div>
+                        <div class="stat-value">${s[cfg.key] ?? 0}</div>
+                        <div class="stat-label">${cfg.label}</div>
+                    </a>
+                `).join('') +
+                `<div class="stat-card stat-total" style="text-decoration:none;">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-value">${totalEquipos}</div>
+                    <div class="stat-label">Total Equipos</div>
+                </div>`;
+
+            /* DB activa */
+            document.getElementById('dbStatus').textContent = '✓ Conectada';
+            document.getElementById('dbStatus').style.color  = 'var(--clr-success)';
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-CO');
         }
-        function statCard(title, val, icon, color) {
-            return `<div class="stat-card"><div class="stat-card-icon">${icon}</div><div class="stat-card-label">${title}</div><div class="stat-card-value">${val||0}</div></div>`;
-        }
-        function logout() { if (confirm('¿Cerrar sesión?')) API.logout(); }
-        loadDashboard();
-    </script>
+
+        /* ─ Stats de gestión: personas activas (activo = true BOOLEAN) ─ */
+        const totalPersonas = personasRes.success
+            ? (personasRes.data || []).filter(p => p.activo === true || p.activo === 1).length
+            : 0;
+
+        document.getElementById('statsGestion').innerHTML = `
+            <a href="/pages/persona.html" class="stat-card stat-gestión" style="text-decoration:none;">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">${totalPersonas}</div>
+                <div class="stat-label">Personas Activas</div>
+            </a>`;
+
+    } catch(err) {
+        console.error('Dashboard error:', err);
+        document.getElementById('statsEquipos').innerHTML =
+            `<div style="grid-column:1/-1;padding:2rem;text-align:center;color:var(--clr-text-muted);font-size:.85rem;">
+                No se pudieron cargar las estadísticas
+            </div>`;
+    }
+}
+
+loadComponents('dashboard');
+loadDashboard();
+</script>
 </body>
 </html>

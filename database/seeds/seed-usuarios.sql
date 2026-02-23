@@ -1,95 +1,139 @@
 -- ============================================================================
--- ARCHIVO: database/seed-usuarios.sql  (CORREGIDO v2)
--- DESCRIPCIÓN: Crea el primer usuario administrador para hacer login.
+-- ARCHIVO: database/seed-usuarios-iniciales.sql
+-- DESCRIPCIÓN: Crea dos usuarios iniciales importantes:
+--               1. ADMINISTRADOR (superusuario)
+--               2. TICS (técnico con permisos operativos)
 --
--- CAMBIOS RESPECTO A LA VERSIÓN ANTERIOR:
---   ✅ Columna corregida: `rol` (no `rol_sistema`, que no existe en el schema)
---   ✅ Hash bcrypt válido para la contraseña: admin123
---   ✅ Compatible con schema.sql v2.2
+-- CREDENCIALES INICIALES (cámbialas inmediatamente después del primer login):
+--   ADMINISTRADOR → admin / admin123
+--   TICS          → tics  / tics12
 --
--- PASOS PARA EJECUTAR:
---   1. Asegúrate de haber ejecutado schema.sql primero
---   2. mysql -u root -p tics_aeropuerto < seed-usuarios.sql
---      O desde el cliente MySQL:
---      USE tics_aeropuerto;
---      source /ruta/seed-usuarios.sql
---
--- CREDENCIALES:
---   usuario:    admin
---   contraseña: admin123
---
--- ⚠️  CAMBIA LA CONTRASEÑA DESPUÉS DEL PRIMER LOGIN
+-- IMPORTANTE:
+--   - Estas son credenciales de desarrollo/pruebas
+--   - Cámbialas en producción por contraseñas FUERTES
+--   - Ejecutar SOLO una vez o después de TRUNCATE si es entorno de pruebas
 -- ============================================================================
 
 USE tics_aeropuerto;
 
--- Limpiar datos anteriores si existen (para re-ejecutar limpio)
-DELETE FROM Usuarios_sistema WHERE username = 'admin';
-DELETE FROM Personas WHERE correo_asignado = 'admin@tics.com';
+-- ============================================================================
+-- LIMPIEZA (opcional - descomentar solo en desarrollo/pruebas)
+-- ============================================================================
+-- DELETE FROM Usuarios_sistema 
+-- WHERE username IN ('admin', 'tics');
 
--- Crear persona administrador
-INSERT INTO Personas (nombre, correo_asignado, cargo, rol, area, activo)
-VALUES ('LEONARDO CASAS', 'admin@tics.com', 'JEFE DE TICS', 'ADMINISTRADOR', 'TICS', true);
+-- DELETE FROM Personas 
+-- WHERE correo_asignado IN ('admin@opam.com.co', 'tics@opam.com.co');
 
--- Crear usuario de login
--- Contraseña: admin123
--- Hash generado con bcrypt, salt rounds = 10
--- Para generar un nuevo hash en Node.js:
---   node -e "const b=require('bcrypt'); b.hash('admin123',10).then(h=>console.log(h));"
-INSERT INTO Usuarios_sistema (username, password_hash, id_persona, rol, activo)
-VALUES (
+-- ============================================================================
+-- 1. USUARIO ADMINISTRADOR
+-- ============================================================================
+
+-- Crear la persona asociada
+INSERT INTO Personas (
+    nombre, 
+    correo_asignado, 
+    cargo, 
+    rol, 
+    area, 
+    celular, 
+    extension, 
+    activo
+) VALUES (
+    'LEONARDO CASAS',
+    'admin@opam.com.co',
+    'JEFE DE TICS',
+    'ADMINISTRADOR',
+    'SOPORTE TECNICO',
+    '3017778899',
+    '1139',
+    true
+);
+
+-- Crear usuario de sistema
+-- Contraseña en plano: admin123
+-- Hash bcrypt (10 rondas) generado para esta contraseña
+INSERT INTO Usuarios_sistema (
+    username,
+    password_hash,
+    id_persona,
+    rol,
+    activo
+) VALUES (
     'admin',
-    '$2b$10$YCQB0w/LTGYiiZ7HbwCGGeF1BRrtCMGrAaFIkIBzD7qdASNFzSO6u',
+    '$2b$10$2WeGxQx7pLl/2wOTqCm88OLU6oY9TRI.jvHZnOQaLcvPwtNdQlnYi',
     LAST_INSERT_ID(),
     'ADMINISTRADOR',
     true
 );
 
--- ──────────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 2. USUARIO TICS
+-- ============================================================================
+
+-- Crear la persona asociada
+INSERT INTO Personas (
+    nombre, 
+    correo_asignado, 
+    cargo, 
+    rol, 
+    area, 
+    celular, 
+    extension, 
+    activo
+) VALUES (
+    'ELIOT SAMUEL MARTINEZ',
+    'tics@opam.com.co',
+    'AUXILIAR TICS',
+    'TICS',
+    'SOPORTE TECNICO',
+    '3017778899',
+    '1138',
+    true
+);
+
+-- Crear usuario de sistema
+-- Contraseña en plano: tics12
+-- Hash bcrypt (10 rondas) generado para esta contraseña
+INSERT INTO Usuarios_sistema (
+    username,
+    password_hash,
+    id_persona,
+    rol,
+    activo
+) VALUES (
+    'tics',
+    '$2b$10$2WeGxQx7pLl/2wOTqCm88OaTocQnb4sdsskYZ8y3SKn7ll6IGc9PW',
+    LAST_INSERT_ID(),
+    'TICS',
+    true
+);
+
+-- ============================================================================
 -- VERIFICACIÓN
--- ──────────────────────────────────────────────────────────────────────────────
-SELECT
+-- ============================================================================
+SELECT 
     u.username,
     u.rol                  AS rol_sistema,
     u.activo               AS usuario_activo,
     p.nombre,
     p.correo_asignado,
-    p.rol                  AS rol_persona,
-    u.fecha_creacion
+    p.rol                  AS rol_en_personas,
+    p.area,
+    p.celular,
+    DATE_FORMAT(u.fecha_creacion, '%Y-%m-%d %H:%i') AS creado
 FROM Usuarios_sistema u
 JOIN Personas p ON u.id_persona = p.id_persona
-WHERE u.username = 'admin';
+WHERE u.username IN ('admin', 'tics')
+ORDER BY u.username;
 
-SELECT '✅ Usuario admin creado correctamente.'     AS Resultado;
-SELECT '🔑 Contraseña inicial: admin123'             AS Credencial;
-SELECT '⚠️  Cambia la contraseña en el primer login.' AS Aviso;
+-- Resumen final
+SELECT '=====================================' AS separator;
+SELECT '✅ Usuarios iniciales creados exitosamente' AS mensaje;
+SELECT '👤 ADMINISTRADOR → username: admin     | contraseña: admin123' AS admin_cred;
+SELECT '👷 TICS         → username: tics      | contraseña: tics12'   AS tics_cred;
+SELECT '⚠️ CAMBIA ESTAS CONTRASEÑAS EN EL PRIMER USO (ENTORNO REAL)' AS aviso_seguridad;
+SELECT '=====================================' AS separator;
 
-
--- ──────────────────────────────────────────────────────────────────────────────
--- OPCIONAL: Crear usuarios adicionales de prueba
--- (Descomenta si los necesitas)
--- ──────────────────────────────────────────────────────────────────────────────
-
--- Usuario TICS (technician)
--- INSERT INTO Personas (nombre, correo_asignado, cargo, rol, area, activo)
--- VALUES ('Técnico TICS', 'tecnico@tics.com', 'Técnico TICS', 'TICS', 'Sistemas', true);
--- INSERT INTO Usuarios_sistema (username, password_hash, id_persona, rol, activo)
--- VALUES (
---     'tecnico',
---     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',  -- tics123
---     LAST_INSERT_ID(),
---     'TICS',
---     true
--- );
-
--- Usuario VISITANTE (viewer)
--- INSERT INTO Personas (nombre, correo_asignado, cargo, rol, area, activo)
--- VALUES ('Visitante', 'visitante@tics.com', 'Consulta', 'VISITANTE', 'General', true);
--- INSERT INTO Usuarios_sistema (username, password_hash, id_persona, rol, activo)
--- VALUES (
---     'visitante',
---     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',  -- visitante123
---     LAST_INSERT_ID(),
---     'VISITANTE',
---     true
--- );
+-- Opcional: conteo total
+SELECT COUNT(*) AS total_usuarios_sistema FROM Usuarios_sistema;

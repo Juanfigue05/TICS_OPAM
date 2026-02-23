@@ -1,21 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const Radio = require('../models/Radio');
+const Accesorios = require('../models/Accesorios');
 const Historial = require('../models/Historial');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const data = await Radio.getAll(req.query);
+        const data = await Accesorios.getAll(req.query);
         res.json({ success: true, count: data.length, data });
     } catch (e) {
-        res.status(500).json({ success: false, error: 'Error al obtener radios' });
+        res.status(500).json({ success: false, error: 'Error al obtener accesorios' });
+    }
+});
+
+router.get('/tipos', authenticateToken, async (req, res) => {
+    try {
+        const tipos = await Accesorios.getTipos();
+        res.json({ success: true, data: tipos });
+    } catch (e) {
+        res.status(500).json({ success: false, error: 'Error al obtener tipos de accesorios' });
     }
 });
 
 router.get('/stats', authenticateToken, async (req, res) => {
     try {
-        const data = await Radio.getStats();
+        const data = await Accesorios.getStats();
         res.json({ success: true, data });
     } catch (e) {
         res.status(500).json({ success: false, error: 'Error al obtener estadísticas' });
@@ -24,25 +33,30 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
-        const rows = await Radio.getById(req.params.id);
-        if (!rows.length) return res.status(404).json({ success: false, error: 'Radio no encontrado' });
-        const historial = await Historial.getByEquipo('RADIO', req.params.id);
+        const rows = await Accesorios.getById(req.params.id);
+        if (!rows.length) return res.status(404).json({ success: false, error: 'Accesorio no encontrado' });
+        const historial = await Historial.getByEquipo('ACCESORIO', req.params.id);
         res.json({ success: true, data: { ...rows[0], historial } });
     } catch (e) {
-        res.status(500).json({ success: false, error: 'Error al obtener radio' });
+        res.status(500).json({ success: false, error: 'Error al obtener accesorio' });
     }
 });
 
 router.post('/', authenticateToken, requireRole(['technician', 'admin']), async (req, res) => {
     try {
         const { id_persona, id_ubicacion, ...datos } = req.body;
-        const id_radio = await Radio.create(datos);
+
+        if (!datos.tipo_accesorio) {
+            return res.status(400).json({ success: false, error: 'El tipo de accesorio es requerido' });
+        }
+
+        const id_accesorio = await Accesorios.create(datos);
 
         if (id_persona && id_ubicacion) {
-            await Radio.asignar(id_radio, id_persona, id_ubicacion);
+            await Accesorios.asignar(id_accesorio, id_persona, id_ubicacion);
             await Historial.registrar({
-                tipo_equipo: 'RADIO',
-                id_equipo: id_radio,
+                tipo_equipo: 'ACCESORIO',
+                id_equipo: id_accesorio,
                 tipo_accion: 'ASIGNACION',
                 id_persona,
                 id_ubicacion,
@@ -52,11 +66,11 @@ router.post('/', authenticateToken, requireRole(['technician', 'admin']), async 
 
         res.status(201).json({
             success: true,
-            message: 'Radio creado',
-            data: { id_radio }
+            message: 'Accesorio creado',
+            data: { id_accesorio, tipo_accesorio: datos.tipo_accesorio }
         });
     } catch (e) {
-        res.status(500).json({ success: false, error: 'Error al crear radio: ' + e.message });
+        res.status(500).json({ success: false, error: 'Error al crear accesorio: ' + e.message });
     }
 });
 
@@ -64,12 +78,12 @@ router.put('/:id', authenticateToken, requireRole(['technician', 'admin']), asyn
     try {
         const { id_persona, id_ubicacion, desasignar, ...campos } = req.body;
 
-        await Radio.update(req.params.id, campos);
+        await Accesorios.update(req.params.id, campos);
 
         if (id_persona && id_ubicacion) {
-            await Radio.asignar(req.params.id, id_persona, id_ubicacion);
+            await Accesorios.asignar(req.params.id, id_persona, id_ubicacion);
             await Historial.registrar({
-                tipo_equipo: 'RADIO',
+                tipo_equipo: 'ACCESORIO',
                 id_equipo: req.params.id,
                 tipo_accion: 'ASIGNACION',
                 id_persona,
@@ -77,33 +91,33 @@ router.put('/:id', authenticateToken, requireRole(['technician', 'admin']), asyn
                 id_usuario: req.user.id_usuario
             });
         } else if (desasignar) {
-            await Radio.desasignar(req.params.id);
+            await Accesorios.desasignar(req.params.id);
             await Historial.registrar({
-                tipo_equipo: 'RADIO',
+                tipo_equipo: 'ACCESORIO',
                 id_equipo: req.params.id,
                 tipo_accion: 'DEVOLUCION',
                 id_usuario: req.user.id_usuario
             });
         }
 
-        res.json({ success: true, message: 'Radio actualizado' });
+        res.json({ success: true, message: 'Accesorio actualizado' });
     } catch (e) {
-        res.status(500).json({ success: false, error: 'Error al actualizar radio: ' + e.message });
+        res.status(500).json({ success: false, error: 'Error al actualizar accesorio: ' + e.message });
     }
 });
 
 router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
     try {
-        await Radio.darDeBaja(req.params.id);
+        await Accesorios.darDeBaja(req.params.id);
         await Historial.registrar({
-            tipo_equipo: 'RADIO',
+            tipo_equipo: 'ACCESORIO',
             id_equipo: req.params.id,
             tipo_accion: 'DADO DE BAJA',
             id_usuario: req.user.id_usuario
         });
-        res.json({ success: true, message: 'Radio dado de baja' });
+        res.json({ success: true, message: 'Accesorio dado de baja' });
     } catch (e) {
-        res.status(500).json({ success: false, error: 'Error al dar de baja radio: ' + e.message });
+        res.status(500).json({ success: false, error: 'Error al dar de baja accesorio: ' + e.message });
     }
 });
 

@@ -178,7 +178,7 @@ CREATE TABLE Radios (
 -- ============================================================================
 CREATE TABLE Telefonos_ip (
     id_telefono_ip INT AUTO_INCREMENT PRIMARY KEY,
-    nombre_telefono VARCHAR(10)
+    nombre_telefono VARCHAR(10),
     marca VARCHAR(30),
     modelo VARCHAR(30),
     serial_telefono VARCHAR(50) UNIQUE,
@@ -263,7 +263,7 @@ CREATE TABLE Computadores_persona (
     id_computador INT NOT NULL,
     id_persona INT NOT NULL,
     id_ubicacion INT NOT NULL,
-    fecha_asignacion DATE DEFAULT (CURRENT_DATE),
+    fecha_asignacion DATE,
     fecha_devolucion DATE,
     activo ENUM('ACTIVO', 'MANTENIMIENTO', 'DADO DE BAJA', 'ALMACEN') DEFAULT 'ACTIVO',
     notas TEXT,
@@ -279,7 +279,7 @@ CREATE TABLE Celulares_persona (
     id_celular INT NOT NULL,
     id_persona INT NOT NULL,
     id_ubicacion INT NOT NULL,
-    fecha_asignacion DATE DEFAULT (CURRENT_DATE),
+    fecha_asignacion DATE,
     fecha_devolucion DATE,
     activo ENUM('ACTIVO', 'MANTENIMIENTO', 'DADO DE BAJA', 'ALMACEN') DEFAULT 'ACTIVO',
     notas TEXT,
@@ -294,7 +294,7 @@ CREATE TABLE Impresoras_ubicacion (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_impresora INT NOT NULL,
     id_ubicacion INT NOT NULL,
-    fecha_instalacion DATE DEFAULT (CURRENT_DATE),
+    fecha_instalacion DATE,
     activo ENUM('ACTIVO', 'MANTENIMIENTO', 'DADO DE BAJA', 'ALMACEN') DEFAULT 'ACTIVO',
     notas TEXT,
     UNIQUE KEY unique_asignacion_activa (id_impresora, activo),
@@ -307,7 +307,7 @@ CREATE TABLE Radios_persona (
     id_radio INT NOT NULL,
     id_persona INT NOT NULL,
     id_ubicacion INT NOT NULL,
-    fecha_asignacion DATE DEFAULT (CURRENT_DATE),
+    fecha_asignacion DATE,
     fecha_devolucion DATE,
     activo ENUM('ACTIVO', 'MANTENIMIENTO', 'DADO DE BAJA', 'ALMACEN') DEFAULT 'ACTIVO',
     notas TEXT,
@@ -322,7 +322,7 @@ CREATE TABLE Telefono_persona (
     id_telefono_ip INT NOT NULL,
     id_persona INT NOT NULL,
     id_ubicacion INT NOT NULL,
-    fecha_asignacion DATE DEFAULT (CURRENT_DATE),
+    fecha_asignacion DATE,
     fecha_devolucion DATE,
     activo ENUM('ACTIVO', 'MANTENIMIENTO', 'DADO DE BAJA', 'ALMACEN') DEFAULT 'ACTIVO',
     notas TEXT,
@@ -338,7 +338,7 @@ CREATE TABLE Tablets_persona (
     id_tablet INT NOT NULL,
     id_persona INT NOT NULL,
     id_ubicacion INT NOT NULL,
-    fecha_asignacion DATE DEFAULT (CURRENT_DATE),
+    fecha_asignacion DATE,
     fecha_devolucion DATE,
     activo ENUM('ACTIVO', 'MANTENIMIENTO', 'DADO DE BAJA', 'ALMACEN') DEFAULT 'ACTIVO',
     notas TEXT,
@@ -354,7 +354,7 @@ CREATE TABLE Accesorios_persona (
     id_accesorio INT NOT NULL,
     id_persona INT NOT NULL,
     id_ubicacion INT NOT NULL,
-    fecha_asignacion DATE DEFAULT (CURRENT_DATE),
+    fecha_asignacion DATE,
     fecha_devolucion DATE,
     activo ENUM('ACTIVO', 'MANTENIMIENTO', 'DADO DE BAJA', 'ALMACEN') DEFAULT 'ACTIVO',
     notas TEXT,
@@ -391,9 +391,9 @@ CREATE TABLE Historial_Equipos (
     tipo_accion ENUM('ASIGNACION', 'DEVOLUCION', 'REEMPLAZO', 'MANTENIMIENTO', 'DADO DE BAJA', 'REACTIVACION') NOT NULL,
     id_persona INT NOT NULL COMMENT 'Persona involucrada (OBLIGATORIO)',
     id_ubicacion INT NOT NULL COMMENT 'Ubicación involucrada (OBLIGATORIO)',
-    id_usuario INT NOT NULL COMMENT 'ID del usuario del sistema que realizó la acción (reemplaza realizado_por)',
-    valor_anterior TEXT COMMENT 'Estado previo en JSON. Ejemplo: {"estado":"BUENO", "activo":"ACTIVO", "notas":"..."}',
-    valor_nuevo TEXT COMMENT 'Estado nuevo en JSON. Ejemplo: {"estado":"MALO", "activo":"MANTENIMIENTO"}',
+    id_usuario INT NULL COMMENT 'ID del usuario del sistema que realizó la acción (puede quedar NULL si el usuario se elimina)',
+    valor_anterior TEXT COMMENT 'Estado previo en JSON...',
+    valor_nuevo TEXT COMMENT 'Estado nuevo en JSON...',
     razon TEXT COMMENT 'Motivo del cambio',
     fecha_accion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_tipo_equipo (tipo_equipo, id_equipo),
@@ -401,9 +401,9 @@ CREATE TABLE Historial_Equipos (
     INDEX idx_persona (id_persona),
     INDEX idx_ubicacion (id_ubicacion),
     INDEX idx_usuario (id_usuario),
-    FOREIGN KEY (id_persona) REFERENCES Personas(id_persona) ON DELETE RESTRICT,
+    FOREIGN KEY (id_persona)   REFERENCES Personas(id_persona)   ON DELETE RESTRICT,
     FOREIGN KEY (id_ubicacion) REFERENCES Ubicaciones(id_ubicacion) ON DELETE RESTRICT,
-    FOREIGN KEY (id_usuario) REFERENCES Usuarios_sistema(id_usuario) ON DELETE SET NULL
+    FOREIGN KEY (id_usuario)   REFERENCES Usuarios_sistema(id_usuario) ON DELETE SET NULL
 ) ENGINE=InnoDB COMMENT='Historial completo de cambios con auditoría';
 -- ============================================================================
 -- VISTA: Stock en Bodega
@@ -453,6 +453,11 @@ FROM Accesorios
 WHERE activo = 'ALMACEN' 
 GROUP BY tipo_accesorio;
 
+-- Vista para contar personas activas
+CREATE VIEW vw_cantidad_personas_activas AS
+SELECT COUNT(*) AS total_personas_activas
+FROM personas
+WHERE activo = true;
 -- ============================================================================
 -- FIN DEL SCHEMA ACTUALIZADO
 -- ============================================================================
@@ -460,3 +465,13 @@ SELECT '✅ Base de datos creada exitosamente (versión 3.1 corregida)' AS Mensa
 SELECT '📊 Tablas: 18 | Vistas: 1 | Correcciones aplicadas' AS Info;
 SELECT '🔐 Roles de sistema: ADMINISTRADOR, TICS, VISITANTE' AS Roles;
 SELECT '📍 Ahora la vista stock funciona correctamente y el historial tiene auditoría real' AS Nota;
+
+
+-- Opción 1: zona horaria nombrada (recomendada si tienes las tablas de zonas cargadas)
+SET GLOBAL time_zone = 'America/Bogota';
+
+-- Opción 2: offset numérico (funciona siempre)
+SET GLOBAL time_zone = '-05:00';
+
+-- Para que aplique también a tu sesión actual
+SET SESSION time_zone = '-05:00';

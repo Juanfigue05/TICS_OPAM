@@ -1,7 +1,3 @@
-// ============================================================================
-// ARCHIVO: 1_backend/models/Telefono_ip.js
-// ============================================================================
-
 const { query } = require('../config/database');
 
 const Telefono_ip = {
@@ -10,20 +6,21 @@ const Telefono_ip = {
         let sql = `
             SELECT t.*,
                 p.nombre AS nombre_usuario, p.cargo,
-                u.Nombre_ubicacion, u.Area
+                u.Nombre_ubicacion, u.Area,
+                tp.fecha_asignacion
             FROM Telefonos_ip t
-            LEFT JOIN Telefono_persona tp ON t.id_telefono_ip = tp.id_telefono_ip AND tp.activo = true
+            LEFT JOIN Telefono_persona tp ON t.id_telefono_ip = tp.id_telefono_ip AND tp.activo = 'ACTIVO'
             LEFT JOIN Personas p ON tp.id_persona = p.id_persona
             LEFT JOIN Ubicaciones u ON tp.id_ubicacion = u.id_ubicacion
-            WHERE t.activo = true
+            WHERE t.activo = 'ACTIVO'
         `;
         const params = [];
         if (estado) { sql += ' AND t.estado = ?'; params.push(estado); }
         if (search) {
-            sql += ` AND (t.nombre_telefono LIKE ? OR t.marca LIKE ?
-                         OR t.extension LIKE ? OR t.direccion_ip LIKE ? OR p.nombre LIKE ?)`;
+            sql += ` AND (t.marca LIKE ? OR t.modelo LIKE ? OR t.serial_telefono LIKE ?
+                         OR t.extension LIKE ? OR t.ip_telefono LIKE ? OR p.nombre LIKE ?)`;
             const s = `%${search}%`;
-            params.push(s, s, s, s, s);
+            params.push(s, s, s, s, s, s);
         }
         sql += ' ORDER BY t.extension ASC';
         return query(sql, params);
@@ -35,7 +32,7 @@ const Telefono_ip = {
                 p.nombre AS nombre_usuario, p.cargo,
                 u.Nombre_ubicacion
             FROM Telefonos_ip t
-            LEFT JOIN Telefono_persona tp ON t.id_telefono_ip = tp.id_telefono_ip AND tp.activo = true
+            LEFT JOIN Telefono_persona tp ON t.id_telefono_ip = tp.id_telefono_ip AND tp.activo = 'ACTIVO'
             LEFT JOIN Personas p ON tp.id_persona = p.id_persona
             LEFT JOIN Ubicaciones u ON tp.id_ubicacion = u.id_ubicacion
             WHERE t.id_telefono_ip = ?`, [id]);
@@ -43,33 +40,46 @@ const Telefono_ip = {
 
     async getStats() {
         const [porEstado, porMarca] = await Promise.all([
-            query('SELECT estado, COUNT(*) as total FROM Telefonos_ip WHERE activo = true GROUP BY estado'),
-            query('SELECT marca, COUNT(*) as total FROM Telefonos_ip WHERE activo = true GROUP BY marca ORDER BY total DESC')
+            query("SELECT estado, COUNT(*) as total FROM Telefonos_ip WHERE activo = 'ACTIVO' GROUP BY estado"),
+            query("SELECT marca, COUNT(*) as total FROM Telefonos_ip WHERE activo = 'ACTIVO' GROUP BY marca ORDER BY total DESC LIMIT 5")
         ]);
-        return { por_estado: porEstado, por_marca: porMarca };
+        return { porEstado, porMarca };
     },
 
     async create(datos) {
         const result = await query(`
             INSERT INTO Telefonos_ip (
-                nombre_telefono, marca, modelo, serial_telefono,
-                direccion_mac, extension, direccion_ip,
-                tiene_pantalla, poe, estado, fecha_adquisicion, ultimo_mantenimiento, notas, activo
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,true)`,
-            [datos.nombre_telefono, datos.marca, datos.modelo, datos.serial_telefono,
-             datos.direccion_mac, datos.extension, datos.direccion_ip,
-             datos.tiene_pantalla !== undefined ? datos.tiene_pantalla : true,
-             datos.poe !== undefined ? datos.poe : true,
-             datos.estado||'Activo', datos.fecha_adquisicion, datos.ultimo_mantenimiento, datos.notas]
+                marca, modelo, serial_telefono, mac_address, ip_telefono, extension,
+                protocolo, firmware_version, poe, tiene_pantalla, tamano_pantalla, cantidad_lineas,
+                estado, fecha_adquisicion, ultimo_mantenimiento, notas
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [
+                datos.marca,
+                datos.modelo,
+                datos.serial_telefono,
+                datos.mac_address || null,
+                datos.ip_telefono || null,
+                datos.extension || null,
+                datos.protocolo || 'SIP',
+                datos.firmware_version || null,
+                datos.poe !== undefined ? datos.poe : true,
+                datos.tiene_pantalla || false,
+                datos.tamano_pantalla || null,
+                datos.cantidad_lineas || 1,
+                datos.estado || 'BUENO',
+                datos.fecha_adquisicion || null,
+                datos.ultimo_mantenimiento || null,
+                datos.notas || null
+            ]
         );
         return result.insertId;
     },
 
     async update(id, campos) {
         const allowed = [
-            'nombre_telefono','marca','modelo','serial_telefono',
-            'direccion_mac','extension','direccion_ip',
-            'tiene_pantalla','poe','estado','fecha_adquisicion','ultimo_mantenimiento','notas'
+            'marca','modelo','serial_telefono','mac_address','ip_telefono','extension',
+            'protocolo','firmware_version','poe','tiene_pantalla','tamano_pantalla','cantidad_lineas',
+            'estado','fecha_adquisicion','ultimo_mantenimiento','notas'
         ];
         const fields = [], values = [];
         for (const f of allowed) {
@@ -82,25 +92,25 @@ const Telefono_ip = {
 
     async asignar(id_telefono_ip, id_persona, id_ubicacion) {
         await query(
-            'UPDATE Telefono_persona SET activo = false WHERE id_telefono_ip = ? AND activo = true',
+            "UPDATE Telefono_persona SET activo = 'DADO DE BAJA' WHERE id_telefono_ip = ? AND activo = 'ACTIVO'",
             [id_telefono_ip]
         );
         return query(
-            'INSERT INTO Telefono_persona (id_telefono_ip, id_persona, id_ubicacion, activo) VALUES (?,?,?,true)',
-            [id_telefono_ip, id_persona, id_ubicacion]
+            'INSERT INTO Telefono_persona (id_telefono_ip, id_persona, id_ubicacion, activo) VALUES (?,?,?,?)',
+            [id_telefono_ip, id_persona, id_ubicacion, 'ACTIVO']
         );
     },
 
     async desasignar(id_telefono_ip) {
         return query(
-            'UPDATE Telefono_persona SET activo = false, fecha_devolucion = CURDATE() WHERE id_telefono_ip = ? AND activo = true',
+            "UPDATE Telefono_persona SET activo = 'DADO DE BAJA', fecha_devolucion = CURDATE() WHERE id_telefono_ip = ? AND activo = 'ACTIVO'",
             [id_telefono_ip]
         );
     },
 
     async darDeBaja(id) {
-        await query("UPDATE Telefonos_ip SET estado = 'Dado de baja', activo = false WHERE id_telefono_ip = ?", [id]);
-        await query('UPDATE Telefono_persona SET activo = false WHERE id_telefono_ip = ?', [id]);
+        await query("UPDATE Telefonos_ip SET activo = 'DADO DE BAJA' WHERE id_telefono_ip = ?", [id]);
+        await query("UPDATE Telefono_persona SET activo = 'DADO DE BAJA' WHERE id_telefono_ip = ?", [id]);
     }
 };
 

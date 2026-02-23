@@ -1,7 +1,3 @@
-// ============================================================================
-// ARCHIVO: 1_backend/models/Celular.js
-// ============================================================================
-
 const { query } = require('../config/database');
 
 const Celular = {
@@ -10,9 +6,10 @@ const Celular = {
         let sql = `
             SELECT c.*,
                 p.nombre AS nombre_usuario, p.cargo,
-                u.Nombre_ubicacion, u.Area
+                u.Nombre_ubicacion, u.Area,
+                cp.fecha_asignacion
             FROM Celulares c
-            LEFT JOIN Celulares_persona cp ON c.id_celular = cp.id_celular AND cp.activo = true
+            LEFT JOIN Celulares_persona cp ON c.id_celular = cp.id_celular AND cp.activo = 'ACTIVO'
             LEFT JOIN Personas p ON cp.id_persona = p.id_persona
             LEFT JOIN Ubicaciones u ON cp.id_ubicacion = u.id_ubicacion
             WHERE c.activo = 'ACTIVO'
@@ -35,7 +32,7 @@ const Celular = {
                 p.nombre AS nombre_usuario, p.cargo,
                 u.Nombre_ubicacion, u.Area
             FROM Celulares c
-            LEFT JOIN Celulares_persona cp ON c.id_celular = cp.id_celular AND cp.activo = true
+            LEFT JOIN Celulares_persona cp ON c.id_celular = cp.id_celular AND cp.activo = 'ACTIVO'
             LEFT JOIN Personas p ON cp.id_persona = p.id_persona
             LEFT JOIN Ubicaciones u ON cp.id_ubicacion = u.id_ubicacion
             WHERE c.id_celular = ?`, [id]);
@@ -43,12 +40,12 @@ const Celular = {
 
     async getStats() {
         const [porEstado, porMarca, porOperador, porSO] = await Promise.all([
-            query('SELECT estado, COUNT(*) as total FROM Celulares WHERE activo = true GROUP BY estado'),
-            query('SELECT marca, COUNT(*) as total FROM Celulares WHERE activo = true GROUP BY marca ORDER BY total DESC'),
-            query('SELECT sim_company, COUNT(*) as total FROM Celulares WHERE activo = true GROUP BY sim_company ORDER BY total DESC'),
-            query('SELECT sistema_op, COUNT(*) as total FROM Celulares WHERE activo = true GROUP BY sistema_op')
+            query("SELECT estado, COUNT(*) as total FROM Celulares WHERE activo = 'ACTIVO' GROUP BY estado"),
+            query("SELECT marca, COUNT(*) as total FROM Celulares WHERE activo = 'ACTIVO' GROUP BY marca ORDER BY total DESC LIMIT 5"),
+            query("SELECT sim_company, COUNT(*) as total FROM Celulares WHERE activo = 'ACTIVO' GROUP BY sim_company"),
+            query("SELECT sistema_op, COUNT(*) as total FROM Celulares WHERE activo = 'ACTIVO' GROUP BY sistema_op")
         ]);
-        return { por_estado: porEstado, por_marca: porMarca, por_operador: porOperador, por_so: porSO };
+        return { porEstado, porMarca, porOperador, porSO };
     },
 
     async create(datos) {
@@ -56,14 +53,31 @@ const Celular = {
             INSERT INTO Celulares (
                 nombre_celular, numero_celular, marca, modelo, serial_celular,
                 sim_company, imei1_celular, imei2_celular, punk,
-                procesador, ram, almacenamiento, sistema_op, version_op,
-                plan_datos, estado, fecha_adquisicion, fecha_vencimiento_contrato, notas
+                procesador, ram, almacenamiento,
+                sistema_op, version_op, plan_datos,
+                estado, fecha_adquisicion, fecha_vencimiento_contrato, notas
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-            [datos.nombre_celular, datos.numero_celular, datos.marca, datos.modelo, datos.serial_celular,
-             datos.sim_company||'No definido', datos.imei1_celular, datos.imei2_celular, datos.punk,
-             datos.procesador, datos.ram, datos.almacenamiento,
-             datos.sistema_op||'ANDROID', datos.version_op, datos.plan_datos,
-             datos.estado||'BUENO', datos.fecha_adquisicion, datos.fecha_vencimiento_contrato, datos.notas]
+            [
+                datos.nombre_celular,
+                datos.numero_celular,
+                datos.marca,
+                datos.modelo,
+                datos.serial_celular,
+                datos.sim_company || 'No definido',
+                datos.imei1_celular || null,
+                datos.imei2_celular || null,
+                datos.punk || null,
+                datos.procesador || null,
+                datos.ram || null,
+                datos.almacenamiento || null,
+                datos.sistema_op || 'ANDROID',
+                datos.version_op || null,
+                datos.plan_datos || null,
+                datos.estado || 'BUENO',
+                datos.fecha_adquisicion || null,
+                datos.fecha_vencimiento_contrato || null,
+                datos.notas || null
+            ]
         );
         return result.insertId;
     },
@@ -77,7 +91,10 @@ const Celular = {
         ];
         const fields = [], values = [];
         for (const f of allowed) {
-            if (campos[f] !== undefined) { fields.push(`${f} = ?`); values.push(campos[f]); }
+            if (campos[f] !== undefined) {
+                fields.push(`${f} = ?`);
+                values.push(campos[f]);
+            }
         }
         if (!fields.length) return null;
         values.push(id);
@@ -86,25 +103,25 @@ const Celular = {
 
     async asignar(id_celular, id_persona, id_ubicacion) {
         await query(
-            'UPDATE Celulares_persona SET activo = false WHERE id_celular = ? AND activo = true',
+            "UPDATE Celulares_persona SET activo = 'DADO DE BAJA' WHERE id_celular = ? AND activo = 'ACTIVO'",
             [id_celular]
         );
         return query(
-            'INSERT INTO Celulares_persona (id_celular, id_persona, id_ubicacion, activo) VALUES (?,?,?,true)',
-            [id_celular, id_persona, id_ubicacion]
+            'INSERT INTO Celulares_persona (id_celular, id_persona, id_ubicacion, activo) VALUES (?,?,?,?)',
+            [id_celular, id_persona, id_ubicacion, 'ACTIVO']
         );
     },
 
     async desasignar(id_celular) {
         return query(
-            'UPDATE Celulares_persona SET activo = false, fecha_devolucion = CURDATE() WHERE id_celular = ? AND activo = true',
+            "UPDATE Celulares_persona SET activo = 'DADO DE BAJA', fecha_devolucion = CURDATE() WHERE id_celular = ? AND activo = 'ACTIVO'",
             [id_celular]
         );
     },
 
     async darDeBaja(id) {
-        await query("UPDATE Celulares SET estado = 'Dado de baja', activo = false WHERE id_celular = ?", [id]);
-        await query('UPDATE Celulares_persona SET activo = false WHERE id_celular = ?', [id]);
+        await query("UPDATE Celulares SET activo = 'DADO DE BAJA' WHERE id_celular = ?", [id]);
+        await query("UPDATE Celulares_persona SET activo = 'DADO DE BAJA' WHERE id_celular = ?", [id]);
     }
 };
 
