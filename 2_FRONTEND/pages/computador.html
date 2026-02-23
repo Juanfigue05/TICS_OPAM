@@ -236,7 +236,6 @@ function renderTable(data) {
                 <div class="empty-state">
                     <div class="empty-state-icon">💻</div>
                     <div class="empty-state-title">Sin computadores registrados</div>
-                    <div class="empty-state-sub">Agrega el primero con el botón "Nuevo Computador"</div>
                 </div>
             </td></tr>`;
         return;
@@ -257,6 +256,7 @@ function renderTable(data) {
             <td>${getBadge(item.activo)}</td>
             <td style="text-align:center;">
                 <div class="flex gap-2" style="justify-content:center;">
+                    <button class="btn btn-ghost btn-sm btn-icon" onclick="openQRModal('computador',${item.id_computador},${JSON.stringify(item.nombre_equipo||item.codigo_activo||'Equipo')})" title="Ver QR"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="2" height="2"/><rect x="18" y="14" width="2" height="2"/><rect x="14" y="18" width="2" height="2"/><rect x="18" y="18" width="2" height="2"/></svg></button>
                     <button class="btn btn-ghost btn-sm btn-icon" onclick="editComputador(${item.id_computador})" title="Editar">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -406,13 +406,7 @@ async function editComputador(id) {
 }
 
 async function deleteComputador(id) {
-    const ok = await confirmAction({
-        title: '¿Dar de baja computador?',
-        message: 'Esta acción desactivará el equipo y se registrará en el historial.',
-        confirmText: 'Dar de baja',
-        type: 'danger'
-    });
-    if (!ok) return;
+    if (!confirm('¿Confirmas dar de baja este computador? Esta acción se registrará en el historial.')) return;
     try {
         await API.delete(`/computadores/${id}`);
         showSuccess('Computador dado de baja.');

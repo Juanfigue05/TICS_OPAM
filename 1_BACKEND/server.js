@@ -16,6 +16,7 @@ require('dotenv').config();
 
 // ── DB ───────────────────────────────────────────────────────────────────────
 const { testConnection, query } = require('./config/database');   // ✅ query importado
+const QRCode = require('qrcode');
 
 // ── Rutas ────────────────────────────────────────────────────────────────────
 const authRoutes       = require('./routes/auth');
@@ -105,164 +106,199 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
     }
 });
 
-// Dashboard completo (requiere auth) — todos los datos para las gráficas
-app.get('/api/dashboard', authenticateToken, async (req, res) => {
+// ============================================================================
+// RUTAS PÚBLICAS — No requieren autenticación
+// ============================================================================
+
+// Mapa de tipos de dispositivo → configuración de consulta
+const PUBLIC_DEVICE_MAP = {
+    computador: {
+        table: 'Computadores', pk: 'id_computador',
+        sql: `SELECT c.id_computador AS id, 'Computador' AS tipo_equipo,
+                c.codigo_activo, c.nombre_equipo AS nombre,
+                c.marca_equipo AS marca, c.modelo_equipo AS modelo,
+                c.serial_equipo AS serial, c.estado, c.activo,
+                c.qr_code,
+                -- Campos técnicos (solo para usuarios autenticados, se filtran en frontend)
+                c.procesador, c.capacidad_ram, c.capacidad_disco, c.tipo_disco,
+                c.sistema_operativo, c.tipo_computador,
+                c.mac_wifi, c.mac_ethernet, c.direccion_ip,
+                c.fecha_adquisicion, c.fecha_garantia, c.ultimo_mantenimiento, c.notas,
+                -- Asignación
+                p.nombre AS asignado_a, p.cargo, p.area AS area_persona,
+                u.Nombre_ubicacion AS ubicacion, u.Area AS area_ubicacion
+              FROM Computadores c
+              LEFT JOIN Computadores_persona cp ON c.id_computador = cp.id_computador AND cp.activo = 'ACTIVO'
+              LEFT JOIN Personas p ON cp.id_persona = p.id_persona
+              LEFT JOIN Ubicaciones u ON cp.id_ubicacion = u.id_ubicacion
+              WHERE c.id_computador = ?`
+    },
+    celular: {
+        table: 'Celulares', pk: 'id_celular',
+        sql: `SELECT c.id_celular AS id, 'Celular' AS tipo_equipo,
+                NULL AS codigo_activo, c.nombre_celular AS nombre,
+                c.marca, c.modelo, c.serial_celular AS serial,
+                c.estado, c.activo, c.qr_code,
+                c.numero_celular, c.imei1_celular, c.imei2_celular,
+                c.sim_company, c.sistema_op, c.version_op,
+                c.ram, c.almacenamiento, c.procesador,
+                c.plan_datos, c.fecha_adquisicion, c.notas,
+                p.nombre AS asignado_a, p.cargo,
+                u.Nombre_ubicacion AS ubicacion, u.Area AS area_ubicacion
+              FROM Celulares c
+              LEFT JOIN Celulares_persona cp ON c.id_celular = cp.id_celular AND cp.activo = 'ACTIVO'
+              LEFT JOIN Personas p ON cp.id_persona = p.id_persona
+              LEFT JOIN Ubicaciones u ON cp.id_ubicacion = u.id_ubicacion
+              WHERE c.id_celular = ?`
+    },
+    impresora: {
+        table: 'Impresoras', pk: 'id_impresora',
+        sql: `SELECT i.id_impresora AS id, 'Impresora' AS tipo_equipo,
+                NULL AS codigo_activo, i.nombre_equipo AS nombre,
+                i.marca, i.modelo, i.serial,
+                i.estado, i.activo, i.qr_code,
+                i.tipo_impresora, i.tipo_red, i.ip_impresora,
+                i.mac_ethernet, i.mac_wifi,
+                i.impresion_color, i.tiene_escaner, i.impresion_duplex,
+                i.fecha_adquisicion, i.ultimo_mantenimiento, i.notas,
+                NULL AS asignado_a, NULL AS cargo,
+                u.Nombre_ubicacion AS ubicacion, u.Area AS area_ubicacion
+              FROM Impresoras i
+              LEFT JOIN Impresoras_ubicacion iu ON i.id_impresora = iu.id_impresora AND iu.activo = 'ACTIVO'
+              LEFT JOIN Ubicaciones u ON iu.id_ubicacion = u.id_ubicacion
+              WHERE i.id_impresora = ?`
+    },
+    radio: {
+        table: 'Radios', pk: 'id_radio',
+        sql: `SELECT r.id_radio AS id, 'Radio' AS tipo_equipo,
+                NULL AS codigo_activo, r.tipo_radio AS nombre,
+                r.marca, r.modelo, r.serial_radio AS serial,
+                r.estado, r.activo, r.qr_code,
+                r.frecuencia, r.bateria, r.serial_bateria,
+                r.antena, r.diadema_manos_libres, r.base_cargador,
+                r.fecha_adquisicion, r.notas,
+                p.nombre AS asignado_a, p.cargo,
+                u.Nombre_ubicacion AS ubicacion, u.Area AS area_ubicacion
+              FROM Radios r
+              LEFT JOIN Radios_persona rp ON r.id_radio = rp.id_radio AND rp.activo = 'ACTIVO'
+              LEFT JOIN Personas p ON rp.id_persona = p.id_persona
+              LEFT JOIN Ubicaciones u ON rp.id_ubicacion = u.id_ubicacion
+              WHERE r.id_radio = ?`
+    },
+    telefono_ip: {
+        table: 'Telefonos_ip', pk: 'id_telefono_ip',
+        sql: `SELECT t.id_telefono_ip AS id, 'Teléfono IP' AS tipo_equipo,
+                NULL AS codigo_activo, t.nombre_telefono AS nombre,
+                t.marca, t.modelo, t.serial_telefono AS serial,
+                t.estado, t.activo, t.qr_code,
+                t.extension, t.protocolo, t.ip_telefono,
+                t.mac_address, t.poe, t.tiene_pantalla, t.cantidad_lineas,
+                t.fecha_adquisicion, t.notas,
+                p.nombre AS asignado_a, p.cargo,
+                u.Nombre_ubicacion AS ubicacion, u.Area AS area_ubicacion
+              FROM Telefonos_ip t
+              LEFT JOIN Telefono_persona tp ON t.id_telefono_ip = tp.id_telefono_ip AND tp.activo = 'ACTIVO'
+              LEFT JOIN Personas p ON tp.id_persona = p.id_persona
+              LEFT JOIN Ubicaciones u ON tp.id_ubicacion = u.id_ubicacion
+              WHERE t.id_telefono_ip = ?`
+    },
+    tablet: {
+        table: 'Tablets', pk: 'id_tablet',
+        sql: `SELECT ta.id_tablet AS id, 'Tablet' AS tipo_equipo,
+                NULL AS codigo_activo, ta.nombre_tablet AS nombre,
+                ta.marca, ta.modelo, ta.serial_tablet AS serial,
+                ta.estado, ta.activo, ta.qr_code,
+                ta.imei, ta.sistema_op, ta.version_op,
+                ta.ram, ta.almacenamiento, ta.procesador,
+                ta.tamano_pantalla, ta.sim_company, ta.plan_datos,
+                ta.fecha_adquisicion, ta.notas,
+                p.nombre AS asignado_a, p.cargo,
+                u.Nombre_ubicacion AS ubicacion, u.Area AS area_ubicacion
+              FROM Tablets ta
+              LEFT JOIN Tablets_persona tp ON ta.id_tablet = tp.id_tablet AND tp.activo = 'ACTIVO'
+              LEFT JOIN Personas p ON tp.id_persona = p.id_persona
+              LEFT JOIN Ubicaciones u ON tp.id_ubicacion = u.id_ubicacion
+              WHERE ta.id_tablet = ?`
+    },
+    accesorio: {
+        table: 'Accesorios', pk: 'id_accesorio',
+        sql: `SELECT a.id_accesorio AS id, 'Accesorio' AS tipo_equipo,
+                NULL AS codigo_activo, a.tipo_accesorio AS nombre,
+                a.marca, a.modelo, a.serial,
+                a.estado, a.activo, a.qr_code,
+                a.descripcion, a.cantidad,
+                a.fecha_adquisicion, a.notas,
+                p.nombre AS asignado_a, p.cargo,
+                u.Nombre_ubicacion AS ubicacion, u.Area AS area_ubicacion
+              FROM Accesorios a
+              LEFT JOIN Accesorios_persona ap ON a.id_accesorio = ap.id_accesorio AND ap.activo = 'ACTIVO'
+              LEFT JOIN Personas p ON ap.id_persona = p.id_persona
+              LEFT JOIN Ubicaciones u ON ap.id_ubicacion = u.id_ubicacion
+              WHERE a.id_accesorio = ?`
+    }
+};
+
+// ── GET /api/public/dispositivo/:tipo/:id — Sin autenticación ────────────────
+app.get('/api/public/dispositivo/:tipo/:id', async (req, res) => {
+    const { tipo, id } = req.params;
+    const cfg = PUBLIC_DEVICE_MAP[tipo];
+    if (!cfg) return res.status(400).json({ success: false, error: 'Tipo de dispositivo inválido' });
     try {
-        const DEVICE_KEYS = ['computadores','celulares','impresoras','radios','telefonos_ip','tablets','accesorios'];
-
-        const [statsRows, ubicRows, asigRows, rolesRows, histRows, personasRows, ultimosRows, marcasRows] = await Promise.all([
-
-            // 1. Conteo de equipos activos por tipo
-            query(`SELECT
-                (SELECT COUNT(*) FROM Computadores WHERE activo = 'ACTIVO') AS computadores,
-                (SELECT COUNT(*) FROM Celulares    WHERE activo = 'ACTIVO') AS celulares,
-                (SELECT COUNT(*) FROM Impresoras   WHERE activo = 'ACTIVO') AS impresoras,
-                (SELECT COUNT(*) FROM Radios       WHERE activo = 'ACTIVO') AS radios,
-                (SELECT COUNT(*) FROM Telefonos_ip WHERE activo = 'ACTIVO') AS telefonos_ip,
-                (SELECT COUNT(*) FROM Tablets      WHERE activo = 'ACTIVO') AS tablets,
-                (SELECT COUNT(*) FROM Accesorios   WHERE activo = 'ACTIVO') AS accesorios`),
-
-            // 2. Equipos asignados por ubicación (top 8)
-            query(`
-                SELECT u.Nombre_ubicacion AS nombre, COUNT(*) AS total
-                FROM (
-                    SELECT id_ubicacion FROM Computadores_persona WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT id_ubicacion FROM Celulares_persona    WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT id_ubicacion FROM Impresoras_ubicacion WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT id_ubicacion FROM Radios_persona       WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT id_ubicacion FROM Telefono_persona     WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT id_ubicacion FROM Tablets_persona      WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT id_ubicacion FROM Accesorios_persona   WHERE activo = 'ACTIVO'
-                ) AS todos
-                JOIN Ubicaciones u ON todos.id_ubicacion = u.id_ubicacion
-                WHERE u.activo = true
-                GROUP BY u.id_ubicacion, u.Nombre_ubicacion
-                ORDER BY total DESC
-                LIMIT 8`),
-
-            // 3. Asignados vs sin asignar por tipo principal
-            query(`SELECT
-                (SELECT COUNT(*) FROM Computadores WHERE activo = 'ACTIVO') AS comp_total,
-                (SELECT COUNT(DISTINCT id_computador) FROM Computadores_persona WHERE activo = 'ACTIVO') AS comp_asig,
-                (SELECT COUNT(*) FROM Celulares    WHERE activo = 'ACTIVO') AS cel_total,
-                (SELECT COUNT(DISTINCT id_celular)  FROM Celulares_persona    WHERE activo = 'ACTIVO') AS cel_asig,
-                (SELECT COUNT(*) FROM Radios        WHERE activo = 'ACTIVO') AS radio_total,
-                (SELECT COUNT(DISTINCT id_radio)    FROM Radios_persona       WHERE activo = 'ACTIVO') AS radio_asig,
-                (SELECT COUNT(*) FROM Tablets       WHERE activo = 'ACTIVO') AS tablet_total,
-                (SELECT COUNT(DISTINCT id_tablet)   FROM Tablets_persona      WHERE activo = 'ACTIVO') AS tablet_asig,
-                (SELECT COUNT(*) FROM Telefonos_ip  WHERE activo = 'ACTIVO') AS tel_total,
-                (SELECT COUNT(DISTINCT id_telefono_ip) FROM Telefono_persona  WHERE activo = 'ACTIVO') AS tel_asig`),
-
-            // 4. Personas activas por rol
-            query(`SELECT rol, COUNT(*) AS cantidad
-                   FROM Personas WHERE activo = true GROUP BY rol ORDER BY cantidad DESC`),
-
-            // 5. Últimos 8 movimientos del historial
-            query(`SELECT h.tipo_equipo, h.tipo_accion, h.fecha_accion,
-                       p.nombre  AS persona,
-                       u.Nombre_ubicacion AS ubicacion,
-                       us.username AS usuario
-                   FROM Historial_Equipos h
-                   LEFT JOIN Personas         p  ON h.id_persona   = p.id_persona
-                   LEFT JOIN Ubicaciones      u  ON h.id_ubicacion = u.id_ubicacion
-                   LEFT JOIN Usuarios_sistema us ON h.id_usuario   = us.id_usuario
-                   ORDER BY h.fecha_accion DESC
-                   LIMIT 8`),
-
-            // 6. Total personas
-            query(`SELECT COUNT(*) AS total, SUM(activo) AS activas FROM Personas`),
-
-            // 7. Últimos 10 equipos registrados (todos los tipos)
-            query(`
-                SELECT tipo, nombre, marca, modelo, fecha_creacion FROM (
-                    SELECT 'Computador'  AS tipo,
-                        COALESCE(nombre_equipo, codigo_activo, serial_equipo) AS nombre,
-                        marca_equipo AS marca, modelo_equipo AS modelo, fecha_creacion
-                    FROM Computadores WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT 'Celular',
-                        COALESCE(nombre_celular, numero_celular, serial_celular),
-                        marca, modelo, fecha_creacion
-                    FROM Celulares WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT 'Impresora',
-                        COALESCE(nombre_equipo, serial),
-                        marca, modelo, fecha_creacion
-                    FROM Impresoras WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT 'Radio',
-                        COALESCE(tipo_radio, serial_radio),
-                        marca, modelo, fecha_creacion
-                    FROM Radios WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT 'Teléfono IP',
-                        COALESCE(nombre_telefono, serial_telefono),
-                        marca, modelo, fecha_creacion
-                    FROM Telefonos_ip WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT 'Tablet',
-                        COALESCE(nombre_tablet, serial_tablet),
-                        marca, modelo, fecha_creacion
-                    FROM Tablets WHERE activo = 'ACTIVO'
-                    UNION ALL
-                    SELECT 'Accesorio',
-                        tipo_accesorio,
-                        marca, modelo, fecha_creacion
-                    FROM Accesorios WHERE activo = 'ACTIVO'
-                ) AS todos
-                ORDER BY fecha_creacion DESC
-                LIMIT 10`),
-
-            // 8. Top marcas por cantidad de equipos activos
-            query(`
-                SELECT marca, COUNT(*) AS total FROM (
-                    SELECT marca_equipo AS marca FROM Computadores WHERE activo = 'ACTIVO' AND marca_equipo IS NOT NULL
-                    UNION ALL
-                    SELECT marca FROM Celulares    WHERE activo = 'ACTIVO' AND marca IS NOT NULL
-                    UNION ALL
-                    SELECT marca FROM Impresoras   WHERE activo = 'ACTIVO' AND marca IS NOT NULL
-                    UNION ALL
-                    SELECT marca FROM Radios        WHERE activo = 'ACTIVO' AND marca IS NOT NULL
-                    UNION ALL
-                    SELECT marca FROM Telefonos_ip  WHERE activo = 'ACTIVO' AND marca IS NOT NULL
-                    UNION ALL
-                    SELECT marca FROM Tablets       WHERE activo = 'ACTIVO' AND marca IS NOT NULL
-                    UNION ALL
-                    SELECT marca FROM Accesorios    WHERE activo = 'ACTIVO' AND marca IS NOT NULL
-                ) AS todas
-                WHERE TRIM(marca) != ''
-                GROUP BY marca
-                ORDER BY total DESC
-                LIMIT 8`)
-        ]);
-
-        const s = statsRows[0];
-        const total = DEVICE_KEYS.reduce((acc, k) => acc + Number(s[k] || 0), 0);
-
-        res.json({
-            success: true,
-            data: {
-                stats:          { ...s, total },
-                porUbicacion:   ubicRows,
-                asignacion:     asigRows[0],
-                personasPorRol: rolesRows,
-                historial:      histRows,
-                personas:       personasRows[0],
-                ultimosEquipos: ultimosRows,
-                topMarcas:      marcasRows
-            }
-        });
+        const rows = await query(cfg.sql, [id]);
+        if (!rows.length) return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
+        res.json({ success: true, tipo, data: rows[0] });
     } catch (err) {
-        console.error('Error en /api/dashboard:', err.message);
-        res.status(500).json({ success: false, error: 'Error al obtener datos del dashboard' });
+        console.error('Error en public/dispositivo:', err.message);
+        res.status(500).json({ success: false, error: 'Error al obtener el dispositivo' });
     }
 });
+
+// ── GET /api/public/qr — Genera SVG del QR (sin auth) ───────────────────────
+app.get('/api/public/qr', async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ success: false, error: 'Parámetro url requerido' });
+    try {
+        const svg = await QRCode.toString(decodeURIComponent(url), {
+            type:   'svg',
+            margin: 2,
+            width:  260,
+            color:  { dark: '#000000', light: '#ffffff' }
+        });
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // cache 24h (el QR es estático)
+        res.send(svg);
+    } catch (err) {
+        console.error('Error generando QR:', err.message);
+        res.status(500).json({ success: false, error: 'Error al generar el código QR' });
+    }
+});
+
+// ── POST /api/dispositivos/:tipo/:id/guardar-qr — Guarda QR en BD ────────────
+app.post('/api/dispositivos/:tipo/:id/guardar-qr',
+    authenticateToken,
+    (req, res, next) => {
+        const roles = ['technician', 'admin'];
+        if (!roles.includes(req.user.rol))
+            return res.status(403).json({ success: false, error: 'Sin permisos para guardar QR' });
+        next();
+    },
+    async (req, res) => {
+        const { tipo, id } = req.params;
+        const { qr_svg } = req.body;
+        if (!qr_svg) return res.status(400).json({ success: false, error: 'qr_svg requerido' });
+
+        const cfg = PUBLIC_DEVICE_MAP[tipo];
+        if (!cfg) return res.status(400).json({ success: false, error: 'Tipo inválido' });
+
+        try {
+            await query(`UPDATE ${cfg.table} SET qr_code = ? WHERE ${cfg.pk} = ?`, [qr_svg, id]);
+            res.json({ success: true, message: 'Código QR guardado en la base de datos' });
+        } catch (err) {
+            console.error('Error guardando QR:', err.message);
+            res.status(500).json({ success: false, error: 'Error al guardar el QR' });
+        }
+    }
+);
 
 // ✅ Cualquier ruta no-API devuelve el index.html (permite navegación directa)
 app.get('*', (req, res) => {

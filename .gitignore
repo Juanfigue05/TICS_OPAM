@@ -33,3 +33,21 @@ temp/
 # Backups
 *.bak
 backup/
+
+# Dependencias
+.next/
+dist/
+build/
+.vercel/
+
+# Variables de entorno
+.env.*.local
+
+# Logs y temporales
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Carpetas opcionales que no quieres subir
+documentation/
+database/

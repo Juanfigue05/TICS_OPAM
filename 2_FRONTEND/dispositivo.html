@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispositivo — TICS Aeropuerto</title>
+    <link rel="stylesheet" href="./assets/css/airport-theme.css">
+    <style>
+        /* ── Layout sin sidebar ── */
+        body { min-height:100vh; background:var(--clr-bg); }
+        .public-shell { display:flex; flex-direction:column; min-height:100vh; }
+
+        /* ── Navbar pública ── */
+        .pub-nav {
+            height: 56px;
+            background: var(--clr-surface);
+            border-bottom: 1px solid var(--clr-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .pub-nav-brand {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+            font-weight: 800;
+            font-size: .9rem;
+            color: var(--clr-text);
+            text-decoration: none;
+            font-family: var(--font-display);
+        }
+        .pub-nav-brand svg { flex-shrink: 0; }
+        .pub-nav-right { display: flex; align-items: center; gap: .75rem; }
+        .pub-role-badge {
+            font-size: .65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            padding: .25rem .6rem;
+            border-radius: 6px;
+            border: 1px solid;
+        }
+        .pub-role-badge.visitor  { color: #94a3b8; border-color: rgba(148,163,184,.3); background: rgba(148,163,184,.08); }
+        .pub-role-badge.tics     { color: var(--clr-primary); border-color: rgba(43,127,255,.3); background: rgba(43,127,255,.08); }
+        .pub-role-badge.admin    { color: #a855f7; border-color: rgba(168,85,247,.3); background: rgba(168,85,247,.08); }
+
+        /* ── Main content ── */
+        .pub-main {
+            flex: 1;
+            max-width: 860px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 4rem;
+        }
+
+        /* ── Cabecera del dispositivo ── */
+        .dev-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+        .dev-icon-wrap {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            flex-shrink: 0;
+            background: rgba(43,127,255,.12);
+            border: 1px solid rgba(43,127,255,.25);
+        }
+        .dev-title { font-size: 1.5rem; font-weight: 800; color: var(--clr-text); line-height: 1.2; }
+        .dev-sub   { font-size: .82rem; color: var(--clr-text-muted); margin-top: .3rem; font-family: var(--font-mono); }
+        .dev-badges { display: flex; gap: .5rem; margin-top: .6rem; flex-wrap: wrap; }
+
+        /* ── Secciones ── */
+        .section-title {
+            font-size: .65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--clr-text-faint);
+            margin: 1.75rem 0 .75rem;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+        .section-title::after { content:''; flex:1; height:1px; background:var(--clr-border); }
+
+        /* ── Grid de campos ── */
+        .fields-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: .75rem;
+        }
+        .field-item {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: 10px;
+            padding: .85rem 1rem;
+        }
+        .field-label {
+            font-size: .67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--clr-text-faint);
+            margin-bottom: .35rem;
+        }
+        .field-value {
+            font-size: .87rem;
+            color: var(--clr-text);
+            font-weight: 500;
+            word-break: break-word;
+        }
+        .field-value.mono { font-family: var(--font-mono); font-size: .82rem; }
+        .field-value.empty { color: var(--clr-text-faint); font-style: italic; font-weight: 400; }
+
+        /* ── Asignación card ── */
+        .assign-card {
+            background: linear-gradient(135deg, rgba(43,127,255,.06), rgba(0,212,255,.04));
+            border: 1px solid rgba(43,127,255,.2);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+        .assign-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(43,127,255,.15);
+            border: 1px solid rgba(43,127,255,.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--clr-primary);
+            flex-shrink: 0;
+        }
+        .assign-info { flex: 1; }
+        .assign-name  { font-size: 1rem; font-weight: 700; color: var(--clr-text); }
+        .assign-cargo { font-size: .78rem; color: var(--clr-text-muted); margin-top: .15rem; }
+        .assign-ubicacion {
+            font-size: .75rem;
+            color: var(--clr-primary);
+            margin-top: .25rem;
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+        }
+        .unassigned-card {
+            background: var(--clr-surface);
+            border: 1px dashed var(--clr-border);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            text-align: center;
+            color: var(--clr-text-faint);
+            font-size: .85rem;
+        }
+
+        /* ── QR preview (para usuarios autenticados) ── */
+        .qr-preview-card {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+        .qr-thumb {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.6rem;
+        }
+        .qr-thumb svg { width: 80px; height: 80px; }
+
+        /* ── Acciones flotantes (TICS/Admin) ── */
+        .fab-bar {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: .65rem;
+            z-index: 90;
+        }
+        .fab {
+            display: flex;
+            align-items: center;
+            gap: .55rem;
+            padding: .7rem 1.2rem;
+            border-radius: 50px;
+            border: none;
+            font-size: .82rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 4px 20px rgba(0,0,0,.35);
+            transition: transform .15s, box-shadow .15s;
+            white-space: nowrap;
+        }
+        .fab:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.45); }
+        .fab-primary { background: var(--clr-primary); color: #fff; }
+        .fab-secondary { background: var(--clr-surface); color: var(--clr-text); border: 1px solid var(--clr-border); }
+
+        /* ── Loader ── */
+        .pub-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 5rem 0;
+            color: var(--clr-text-faint);
+            font-size: .9rem;
+        }
+
+        /* ── Error ── */
+        .pub-error {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--clr-text-muted);
+        }
+        .pub-error-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .pub-error-title { font-size: 1.2rem; font-weight: 700; color: var(--clr-text); margin-bottom: .5rem; }
+
+        @media (max-width: 560px) {
+            .dev-header { flex-direction: column; gap: .75rem; }
+            .fab-bar { bottom: 1rem; right: 1rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="public-shell">
+
+    <!-- Navbar pública -->
+    <nav class="pub-nav">
+        <a href="./pages/dashboard.html" class="pub-nav-brand">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--clr-primary)" stroke-width="2.5">
+                <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21 4 21 4s-2 0-3.5 1.5L14 9 5.8 7.2c-.5-.1-.9.1-1.1.5L2 10l4 2L4 14l2 1 3-1 2 4 2.8-2.8c.3-.2.5-.6.4-1.1z"/>
+            </svg>
+            TICS Aeropuerto
+        </a>
+        <div class="pub-nav-right" id="navRight">
+            <!-- se llena por JS -->
+        </div>
+    </nav>
+
+    <!-- Contenido -->
+    <main class="pub-main" id="pubMain">
+        <div class="pub-loader">
+            <div class="loader"></div>
+            Cargando información del dispositivo...
+        </div>
+    </main>
+
+</div>
+
+<!-- Barra de acciones flotante (TICS/Admin) -->
+<div class="fab-bar" id="fabBar" style="display:none;"></div>
+
+<script src="./assets/js/api.js"></script>
+<script src="./assets/js/components.js"></script>
+<script>
+// ── Tipos de dispositivo: icono, label, campo de nombre ──────────────────────
+const TIPO_CFG = {
+    computador:  { icon:'💻', label:'Computador',  pk:'id_computador',  nombreKey:'nombre' },
+    celular:     { icon:'📱', label:'Celular',      pk:'id_celular',     nombreKey:'nombre' },
+    impresora:   { icon:'🖨️', label:'Impresora',    pk:'id_impresora',   nombreKey:'nombre' },
+    radio:       { icon:'📻', label:'Radio',         pk:'id_radio',       nombreKey:'nombre' },
+    telefono_ip: { icon:'📞', label:'Teléfono IP',  pk:'id_telefono_ip', nombreKey:'nombre' },
+    tablet:      { icon:'📲', label:'Tablet',        pk:'id_tablet',      nombreKey:'nombre' },
+    accesorio:   { icon:'🔌', label:'Accesorio',    pk:'id_accesorio',   nombreKey:'nombre' },
+};
+
+// ── Información pública (solo lectura para visitantes) ───────────────────────
+const CAMPOS_PUBLICOS = {
+    computador:  ['tipo_equipo','codigo_activo','nombre','marca','modelo','serial','estado','activo'],
+    celular:     ['tipo_equipo','nombre','marca','modelo','serial','estado','activo','numero_celular','sim_company'],
+    impresora:   ['tipo_equipo','nombre','marca','modelo','serial','tipo_impresora','estado','activo'],
+    radio:       ['tipo_equipo','nombre','marca','modelo','serial','frecuencia','estado','activo'],
+    telefono_ip: ['tipo_equipo','nombre','marca','modelo','serial','extension','estado','activo'],
+    tablet:      ['tipo_equipo','nombre','marca','modelo','serial','sistema_op','estado','activo'],
+    accesorio:   ['tipo_equipo','nombre','marca','modelo','serial','descripcion','estado','activo'],
+};
+
+// ── Labels de campos ─────────────────────────────────────────────────────────
+const FIELD_LABELS = {
+    tipo_equipo:'Tipo',codigo_activo:'Código Activo',nombre:'Nombre',
+    marca:'Marca',modelo:'Modelo',serial:'Serial',
+    estado:'Estado físico',activo:'Estado operativo',
+    procesador:'Procesador',capacidad_ram:'RAM',capacidad_disco:'Disco',
+    tipo_disco:'Tipo de disco',sistema_operativo:'Sistema operativo',tipo_computador:'Tipo',
+    mac_wifi:'MAC WiFi',mac_ethernet:'MAC Ethernet',direccion_ip:'IP',
+    fecha_adquisicion:'Adquisición',fecha_garantia:'Garantía',ultimo_mantenimiento:'Últ. mantenimiento',
+    notas:'Notas',
+    numero_celular:'Número',imei1_celular:'IMEI 1',imei2_celular:'IMEI 2',
+    sim_company:'Operador',sistema_op:'SO',version_op:'Versión SO',
+    ram:'RAM',almacenamiento:'Almacenamiento',plan_datos:'Plan datos',
+    tipo_impresora:'Tipo impresora',tipo_red:'Red',ip_impresora:'IP',
+    impresion_color:'Impresión color',tiene_escaner:'Tiene escáner',impresion_duplex:'Dúplex',
+    frecuencia:'Frecuencia',bateria:'Batería',antena:'Antena',
+    diadema_manos_libres:'Diadema',base_cargador:'Base cargadora',
+    extension:'Extensión',protocolo:'Protocolo',ip_telefono:'IP',poe:'PoE',cantidad_lineas:'Líneas',
+    imei:'IMEI',tamano_pantalla:'Pantalla',
+    descripcion:'Descripción',cantidad:'Cantidad',
+};
+
+// Campos que se muestran con fuente monoespaciada
+const MONO_FIELDS = new Set([
+    'codigo_activo','serial','mac_wifi','mac_ethernet','direccion_ip','ip_impresora',
+    'ip_telefono','imei','imei1_celular','imei2_celular','mac_address','numero_celular','extension'
+]);
+
+// Campos booleanos
+const BOOL_FIELDS = new Set(['impresion_color','tiene_escaner','impresion_duplex','antena','diadema_manos_libres','base_cargador','poe']);
+
+// ── Campos completos por tipo (para TICS/Admin) ──────────────────────────────
+const CAMPOS_COMPLETOS = {
+    computador:  ['tipo_equipo','codigo_activo','nombre','marca','modelo','serial',
+                  'tipo_computador','procesador','capacidad_ram','capacidad_disco','tipo_disco',
+                  'sistema_operativo','mac_wifi','mac_ethernet','direccion_ip',
+                  'fecha_adquisicion','fecha_garantia','ultimo_mantenimiento',
+                  'estado','activo','notas'],
+    celular:     ['tipo_equipo','nombre','marca','modelo','serial',
+                  'numero_celular','imei1_celular','imei2_celular','sim_company',
+                  'sistema_op','version_op','ram','almacenamiento','procesador',
+                  'plan_datos','fecha_adquisicion','estado','activo','notas'],
+    impresora:   ['tipo_equipo','nombre','marca','modelo','serial',
+                  'tipo_impresora','tipo_red','ip_impresora','mac_ethernet','mac_wifi',
+                  'impresion_color','tiene_escaner','impresion_duplex',
+                  'fecha_adquisicion','ultimo_mantenimiento','estado','activo','notas'],
+    radio:       ['tipo_equipo','nombre','marca','modelo','serial',
+                  'frecuencia','bateria','serial_bateria','antena','diadema_manos_libres','base_cargador',
+                  'fecha_adquisicion','estado','activo','notas'],
+    telefono_ip: ['tipo_equipo','nombre','marca','modelo','serial',
+                  'extension','protocolo','ip_telefono','mac_address','poe','cantidad_lineas',
+                  'fecha_adquisicion','estado','activo','notas'],
+    tablet:      ['tipo_equipo','nombre','marca','modelo','serial',
+                  'imei','sistema_op','version_op','ram','almacenamiento','procesador',
+                  'tamano_pantalla','sim_company','plan_datos',
+                  'fecha_adquisicion','estado','activo','notas'],
+    accesorio:   ['tipo_equipo','nombre','marca','modelo','serial',
+                  'descripcion','cantidad','fecha_adquisicion','estado','activo','notas'],
+};
+
+// ── Auth info ────────────────────────────────────────────────────────────────
+function getAuthInfo() {
+    const token = localStorage.getItem('token');
+    if (!token) return { loggedIn: false, rol: null, nombre: null };
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const stored  = JSON.parse(localStorage.getItem('usuario') || '{}');
+        return {
+            loggedIn: true,
+            rol:    payload.rol || stored.rol || 'viewer',
+            nombre: stored.nombre || payload.nombre || payload.username || '—'
+        };
+    } catch { return { loggedIn: false, rol: null, nombre: null }; }
+}
+
+// ── Renderizar navbar derecha ────────────────────────────────────────────────
+function renderNavRight(auth) {
+    const el = document.getElementById('navRight');
+    if (!el) return;
+
+    if (!auth.loggedIn) {
+        el.innerHTML = `
+            <span class="pub-role-badge visitor">🔍 Vista pública</span>
+            <a href="/index.html" style="
+                padding:.5rem 1rem;border-radius:8px;
+                background:var(--clr-primary);color:#fff;
+                font-size:.8rem;font-weight:700;text-decoration:none;
+                border:none;cursor:pointer;
+                display:flex;align-items:center;gap:.4rem;
+            ">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                    <polyline points="10 17 15 12 10 7"/>
+                    <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+                Iniciar Sesión
+            </a>`;
+    } else {
+        const rolLabel = { admin:'Administrador', ADMINISTRADOR:'Administrador', technician:'Técnico TICS', TICS:'Técnico TICS', viewer:'Visitante', VISITANTE:'Visitante' }[auth.rol] || auth.rol;
+        const rolCls   = { admin:'admin', ADMINISTRADOR:'admin', technician:'tics', TICS:'tics' }[auth.rol] || 'visitor';
+        const initials = auth.nombre.split(' ').filter(Boolean).map(n => n[0]).slice(0,2).join('').toUpperCase();
+        el.innerHTML = `
+            <span class="pub-role-badge ${rolCls}">${rolLabel}</span>
+            <div style="display:flex;align-items:center;gap:.5rem;">
+                <div style="
+                    width:32px;height:32px;border-radius:50%;
+                    background:rgba(43,127,255,.15);border:1px solid rgba(43,127,255,.25);
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:.72rem;font-weight:800;color:var(--clr-primary);
+                ">${initials}</div>
+                <button onclick="logout()" style="
+                    padding:.45rem .8rem;border-radius:8px;
+                    background:var(--clr-surface-2);border:1px solid var(--clr-border);
+                    color:var(--clr-text-muted);font-size:.78rem;font-weight:600;
+                    cursor:pointer;font-family:inherit;
+                ">Salir</button>
+            </div>`;
+    }
+}
+
+// ── Formatear valor de campo ─────────────────────────────────────────────────
+function formatFieldValue(key, val) {
+    if (val === null || val === undefined || val === '' || val === 'No definido' || val === 'N/A')
+        return { html: '<span class="field-value empty">No registrado</span>', empty: true };
+
+    if (BOOL_FIELDS.has(key))
+        return { html: `<span class="field-value">${val ? '✓ Sí' : '✗ No'}</span>`, empty: false };
+
+    if (key === 'estado' || key === 'activo')
+        return { html: `<span class="badge badge-${String(val).toLowerCase().replace(/\s/g,'')}">${val}</span>`, empty: false };
+
+    if (key.includes('fecha') || key.includes('mantenimiento'))
+        return { html: `<span class="field-value">${val ? new Date(val).toLocaleDateString('es-CO') : '<span class="field-value empty">No registrado</span>'}</span>`, empty: !val };
+
+    const cls = MONO_FIELDS.has(key) ? 'mono' : '';
+    return { html: `<span class="field-value ${cls}">${val}</span>`, empty: false };
+}
+
+// ── Renderizar sección de campos ─────────────────────────────────────────────
+function renderFields(data, campos) {
+    return campos.map(key => {
+        const label = FIELD_LABELS[key] || key;
+        const { html } = formatFieldValue(key, data[key]);
+        return `<div class="field-item">
+            <div class="field-label">${label}</div>
+            <div>${html}</div>
+        </div>`;
+    }).join('');
+}
+
+// ── Renderizar info de asignación ────────────────────────────────────────────
+function renderAsignacion(data) {
+    if (!data.asignado_a) {
+        return `<div class="unassigned-card">
+            <div style="font-size:1.5rem;margin-bottom:.4rem;">📤</div>
+            <div style="font-weight:600;">Sin asignar</div>
+            <div style="font-size:.78rem;margin-top:.2rem;">Este equipo no tiene un usuario asignado actualmente.</div>
+        </div>`;
+    }
+    const initials = data.asignado_a.split(' ').filter(Boolean).map(n => n[0]).slice(0,2).join('').toUpperCase();
+    return `<div class="assign-card">
+        <div class="assign-avatar">${initials}</div>
+        <div class="assign-info">
+            <div class="assign-name">${data.asignado_a}</div>
+            <div class="assign-cargo">${data.cargo || 'Sin cargo definido'}</div>
+            ${data.ubicacion ? `<div class="assign-ubicacion">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                </svg>
+                ${data.ubicacion}${data.area_ubicacion ? ' — ' + data.area_ubicacion : ''}
+            </div>` : ''}
+        </div>
+    </div>`;
+}
+
+// ── Render QR preview ────────────────────────────────────────────────────────
+function renderQrPreview(data, tipo, id) {
+    const hasQR = !!data.qr_code;
+    return `<div class="qr-preview-card">
+        <div class="qr-thumb">
+            ${hasQR
+                ? data.qr_code.replace(/<svg/, '<svg width="80" height="80"')
+                : '<span style="font-size:1.8rem;">📱</span>'}
+        </div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:.88rem;margin-bottom:.25rem;">
+                ${hasQR ? 'QR generado y guardado' : 'QR aún no generado'}
+            </div>
+            <div style="font-size:.75rem;color:var(--clr-text-muted);line-height:1.5;">
+                ${hasQR
+                    ? 'El código QR de este equipo está guardado en la base de datos.'
+                    : 'Puedes generar y guardar el QR desde el inventario.'}
+            </div>
+            ${hasQR ? `<button onclick="openQRModal('${tipo}',${id},'${data.nombre || data.tipo_equipo || tipo}')"
+                style="margin-top:.6rem;padding:.4rem .8rem;border-radius:7px;border:none;
+                background:var(--clr-primary);color:#fff;font-size:.75rem;font-weight:600;
+                cursor:pointer;font-family:inherit;">
+                Ver / Regenerar QR
+            </button>` : ''}
+        </div>
+    </div>`;
+}
+
+// ── Página principal ─────────────────────────────────────────────────────────
+async function initPage() {
+    const params = new URLSearchParams(window.location.search);
+    const tipo   = params.get('tipo');
+    const id     = params.get('id');
+
+    const auth = getAuthInfo();
+    renderNavRight(auth);
+
+    const main = document.getElementById('pubMain');
+
+    if (!tipo || !id || !TIPO_CFG[tipo]) {
+        main.innerHTML = `<div class="pub-error">
+            <div class="pub-error-icon">🔗</div>
+            <div class="pub-error-title">Enlace inválido</div>
+            <div>El código QR no contiene información válida de dispositivo.</div>
+        </div>`;
+        return;
+    }
+
+    document.title = `${TIPO_CFG[tipo].label} #${id} — TICS Aeropuerto`;
+
+    try {
+        const res = await fetch(`/api/public/dispositivo/${tipo}/${id}`);
+        const json = await res.json();
+
+        if (!json.success) throw new Error(json.error || 'No encontrado');
+
+        const data = json.data;
+        const cfg  = TIPO_CFG[tipo];
+
+        // Determinar nivel de acceso
+        const isPrivileged = auth.loggedIn &&
+            ['admin','ADMINISTRADOR','technician','TICS'].includes(auth.rol);
+
+        const campos = isPrivileged ? CAMPOS_COMPLETOS[tipo] : CAMPOS_PUBLICOS[tipo];
+        const nombre = data.nombre || data.codigo_activo || `${cfg.label} #${id}`;
+
+        // Actualizar título de página
+        document.title = `${nombre} — TICS Aeropuerto`;
+
+        // ── Construir HTML ────────────────────────────────────────────────────
+        let html = `
+            <!-- Cabecera -->
+            <div class="dev-header">
+                <div class="dev-icon-wrap">${cfg.icon}</div>
+                <div>
+                    <div class="dev-title">${nombre}</div>
+                    <div class="dev-sub">${cfg.label} · ID ${id}</div>
+                    <div class="dev-badges">
+                        ${data.estado  ? `<span class="badge badge-${data.estado.toLowerCase().replace(/\s/g,'')}">${data.estado}</span>` : ''}
+                        ${data.activo  ? `<span class="badge badge-${data.activo.toLowerCase().replace(/\s/g,'')}">${data.activo}</span>` : ''}
+                        ${data.marca   ? `<span class="badge badge-info">${data.marca}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asignación -->
+            <div class="section-title">Asignación</div>
+            ${renderAsignacion(data)}
+
+            <!-- Información ${isPrivileged ? 'completa' : 'general'} -->
+            <div class="section-title">${isPrivileged ? 'Información Completa' : 'Información General'}
+                ${!isPrivileged ? `<span style="font-size:.65rem;color:var(--clr-text-faint);font-weight:400;
+                    text-transform:none;letter-spacing:0;">
+                    — Inicia sesión para ver todos los campos
+                </span>` : ''}
+            </div>
+            <div class="fields-grid">${renderFields(data, campos)}</div>
+        `;
+
+        // QR preview (solo autenticados)
+        if (isPrivileged) {
+            html += `
+                <div class="section-title">Código QR</div>
+                ${renderQrPreview(data, tipo, id, nombre)}
+            `;
+        }
+
+        // Pie de página
+        html += `
+            <div style="margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid var(--clr-border);
+                        text-align:center;font-size:.72rem;color:var(--clr-text-faint);">
+                Sistema de Inventario TI — TICS Aeropuerto
+                ${!isPrivileged ? `<br><a href="./index.html" style="color:var(--clr-primary);text-decoration:none;">
+                    Iniciar sesión para acceder al sistema completo →</a>` : ''}
+            </div>
+        `;
+
+        main.innerHTML = html;
+
+        // FAB para TICS/Admin
+        if (isPrivileged) {
+            const fabMap = {
+                computador:  './pages/computador.html',
+                celular:     './pages/celular.html',
+                impresora:   './pages/impresora.html',
+                radio:       './pages/radio.html',
+                telefono_ip: './pages/telefono_ip.html',
+                tablet:      './pages/tablet.html',
+                accesorio:   './pages/accesorios.html',
+            };
+
+            const fab = document.getElementById('fabBar');
+            if (fab) {
+                fab.style.display = 'flex';
+                fab.innerHTML = `
+                    <button class="fab fab-secondary"
+                        onclick="openQRModal('${tipo}',${id},'${nombre.replace(/'/g,"\\'")}')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                            <path d="M14 14h.01M14 17h.01M17 14h.01M17 17h.01M20 14h.01M20 17h.01M20 20h.01M17 20h.01M14 20h.01"/>
+                        </svg>
+                        Ver / Generar QR
+                    </button>
+                    <a href="${fabMap[tipo] || './pages/dashboard.html'}" class="fab fab-primary"
+                       style="text-decoration:none;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Editar en inventario
+                    </a>`;
+            }
+        }
+
+    } catch (err) {
+        main.innerHTML = `<div class="pub-error">
+            <div class="pub-error-icon">😕</div>
+            <div class="pub-error-title">Dispositivo no encontrado</div>
+            <div style="margin-top:.5rem;">${err.message}</div>
+            ${auth.loggedIn ? `<a href="./pages/dashboard.html" style="display:inline-block;margin-top:1.25rem;
+                padding:.6rem 1.4rem;border-radius:8px;background:var(--clr-primary);
+                color:#fff;text-decoration:none;font-weight:700;font-size:.85rem;">
+                Ir al Dashboard →
+            </a>` : ''}
+        </div>`;
+    }
+}
+
+// Sobrescribir logout para volver a la misma página (sin auth)
+window.logout = function() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    window.location.reload();
+};
+
+initPage();
+</script>
+</body>
+</html>
