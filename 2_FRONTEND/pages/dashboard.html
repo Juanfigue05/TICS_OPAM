@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TICS Aeropuerto</title>
+    <link rel="stylesheet" href="../assets/css/airport-theme.css">
+</head>
+<body>
+    <div class="airport-layout">
+        <!-- HEADER -->
+        <header class="terminal-header">
+            <div class="logo-section">
+                <h1>✈️ TICS Aeropuerto</h1>
+            </div>
+            <div class="header-actions">
+                <span id="userInfo" class="text-gray">Cargando...</span>
+                <button class="btn btn-secondary" onclick="logout()">🚪 Salir</button>
+            </div>
+        </header>
+
+        
+    <aside class="gate-sidebar">
+        <div class="sidebar-section">
+            <p class="section-title">Panel</p>
+            <ul class="nav-menu"><li class="nav-item"><a href="dashboard.html" class="nav-link active">📊 Dashboard</a></li></ul>
+        </div>
+        <div class="sidebar-section">
+            <p class="section-title">Equipos</p>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="computador.html"  class="nav-link ">💻 Computadores</a></li>
+                <li class="nav-item"><a href="celular.html"     class="nav-link">📱 Celulares</a></li>
+                <li class="nav-item"><a href="impresora.html"   class="nav-link">🖨️ Impresoras</a></li>
+                <li class="nav-item"><a href="radio.html"       class="nav-link">📻 Radios</a></li>
+                <li class="nav-item"><a href="telefono_ip.html" class="nav-link">📞 Teléfonos IP</a></li>
+                <li class="nav-item"><a href="tablet.html"      class="nav-link">📲 Tablets</a></li>
+                <li class="nav-item"><a href="accesorios.html"  class="nav-link">🔌 Accesorios</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-section">
+            <p class="section-title">Gestión</p>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="persona.html"   class="nav-link">👥 Personas</a></li>
+                <li class="nav-item"><a href="ubicacion.html" class="nav-link">📍 Ubicaciones</a></li>
+            </ul>
+        </div>
+    </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="boarding-area">
+            <div class="flight-board">
+                <div class="flight-board-header">
+                    <h2 class="flight-board-title">Panel de Control</h2>
+                </div>
+
+                <!-- ESTADÍSTICAS -->
+                <div class="stats-grid" id="statsContainer"></div>
+
+                <!-- INFO -->
+                <div class="boarding-pass mt-4">
+                    <div class="boarding-pass-body" style="grid-template-columns: 1fr;">
+                        <div>
+                            <h3 class="font-semibold mb-2">Bienvenido al Sistema</h3>
+                            <p class="text-gray">Sistema de Gestión de Inventario TICS - Aeropuerto Alfonso Bonilla Aragón</p>
+                            <p class="mt-2">Total equipos: <strong id="totalEquipos">--</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../assets/js/api.js"></script>
+    <script>
+        async function loadDashboard() {
+            try {
+                const userRes = await API.getMe();
+                if (userRes.success) document.getElementById('userInfo').textContent = userRes.data.nombre;
+
+                const statsRes = await API.getStats();
+                if (statsRes.success) {
+                    const s = statsRes.data;
+                    document.getElementById('totalEquipos').textContent = s.total || 0;
+                    document.getElementById('statsContainer').innerHTML = `
+                        ${statCard('Computadores', s.computadores, '💻', 'status-active')}
+                        ${statCard('Celulares', s.celulares, '📱', 'status-maintenance')}
+                        ${statCard('Impresoras', s.impresoras, '🖨️', 'color-info')}
+                        ${statCard('Radios', s.radios, '📻', 'color-warning')}
+                        ${statCard('Teléfonos IP', s.telefonos_ip, '📞', 'airport-accent')}
+                        ${statCard('Tablets', s.tablets, '📲', 'color-danger')}
+                        ${statCard('Personas', s.personas, '👥', 'gray-700')}
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        function statCard(title, val, icon, color) {
+            return `<div class="stat-card"><div class="stat-card-icon">${icon}</div><div class="stat-card-label">${title}</div><div class="stat-card-value">${val||0}</div></div>`;
+        }
+        function logout() { if (confirm('¿Cerrar sesión?')) API.logout(); }
+        loadDashboard();
+    </script>
+</body>
+</html>

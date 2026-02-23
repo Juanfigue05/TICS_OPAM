@@ -1,0 +1,74 @@
+    <div class="airport-layout"></div>
+        <header class="terminal-header">
+            <h1>👥 Personas</h1>
+            <div class="header-actions">
+                <span id="userInfo"></span>
+                <button class="btn btn-secondary" onclick="logout()">🚪 Salir</button>
+            </div>
+        </header>
+        <aside class="gate-sidebar">
+            <nav><ul class="nav-menu">
+                <li><a href="../pages/dashboard.html" class="nav-link">📊 Dashboard</a></li>
+                <li><a href="../pages/computador.html" class="nav-link">💻 Computadores</a></li>
+                <li><a href="../pages/celular.html" class="nav-link">📱 Celulares</a></li>
+                <li><a href="../pages/impresora.html" class="nav-link">🖨️ Impresoras</a></li>
+                <li><a href="../pages/radio.html" class="nav-link">📻 Radios</a></li>
+                <li><a href="../pages/telefono_ip.html" class="nav-link">📞 Teléfonos IP</a></li>
+                <li><a href="../pages/tablet.html" class="nav-link">📲 Tablets</a></li>
+                <li><a href="../pages/persona.html" class="nav-link active">👥 Personas</a></li>
+                <li><a href="../pages/ubicacion.html" class="nav-link">📍 Ubicaciones</a></li>
+            </ul></nav>
+        </aside>
+    </div>
+
+
+
+
+<main class="boarding-area">
+            <div class="flight-board">
+                <div class="flight-board-header">
+                    <h2>Lista de Personas</h2>
+                    <button class="btn btn-primary" onclick="showModal()">+ Nueva Persona</button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead><tr>
+                            <th>Nombre</th><th>Correo</th><th>Cargo</th><th>Área</th><th>Rol</th><th>Estado</th><th>Acciones</th>
+                        </tr></thead>
+                        <tbody id="tableBody"><tr><td colspan="7">Cargando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <!-- MODAL -->
+    <div id="modal" class="modal" style="display:none;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Nueva Persona</h3>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <form id="form">
+                        <input type="hidden" id="id_persona">
+                        <div class="form-group"><label>Nombre *</label><input type="text" id="nombre" class="form-input" required></div>
+                        <div class="form-group"><label>Correo</label><input type="email" id="correo_asignado" class="form-input"></div>
+                        <div class="form-group"><label>Cargo</label><input type="text" id="cargo" class="form-input"></div>
+                        <div class="form-group"><label>Área</label><input type="text" id="area" class="form-input"></div>
+                        <div class="form-group"><label>Teléfono</label><input type="text" id="telefono" class="form-input"></div>
+                        <div class="form-group"><label>Extensión</label><input type="text" id="extension" class="form-input"></div>
+                        <div class="form-group"><label>Rol</label><select id="rol" class="form-input">
+                            <option value="VISITANTE">Visitante</option>
+                            <option value="TICS">TICS</option>
+                            <option value="ADMINISTRADOR">Administrador</option>
+                        </select></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="savePersona()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
