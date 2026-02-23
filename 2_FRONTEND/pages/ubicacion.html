@@ -330,7 +330,15 @@ function editItem(id) { openModal('edit', id); }
 
 async function toggleActivo(id, currentActivo) {
     const isActive = currentActivo === true || currentActivo === 1;
-    if (!confirm(`¿Confirmas ${isActive ? 'desactivar' : 'activar'} esta ubicación?`)) return;
+    const ok = await confirmAction({
+        title: isActive ? '¿Desactivar ubicación?' : '¿Activar ubicación?',
+        message: isActive
+            ? 'Los equipos asignados a esta ubicación quedarán sin ubicación activa.'
+            : '¿Deseas reactivar esta ubicación en el sistema?',
+        confirmText: isActive ? 'Desactivar' : 'Activar',
+        type: isActive ? 'danger' : 'info'
+    });
+    if (!ok) return;
     try {
         await API.request(`/ubicaciones/${id}`, {
             method: 'PUT',

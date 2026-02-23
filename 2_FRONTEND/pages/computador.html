@@ -406,7 +406,13 @@ async function editComputador(id) {
 }
 
 async function deleteComputador(id) {
-    if (!confirm('¿Confirmas dar de baja este computador? Esta acción se registrará en el historial.')) return;
+    const ok = await confirmAction({
+        title: '¿Dar de baja computador?',
+        message: 'Esta acción desactivará el equipo y se registrará en el historial.',
+        confirmText: 'Dar de baja',
+        type: 'danger'
+    });
+    if (!ok) return;
     try {
         await API.delete(`/computadores/${id}`);
         showSuccess('Computador dado de baja.');

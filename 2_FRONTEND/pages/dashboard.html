@@ -5,96 +5,206 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — TICS Aeropuerto</title>
     <link rel="stylesheet" href="../assets/css/airport-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
-        /* ── Layout interno del dashboard ── */
-        .dash-grid {
+        .dash-grid-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
             margin-top: 1rem;
         }
-        .dash-grid .card-full { grid-column: 1 / -1; }
-
-        /* Separador visual entre equipos y gestión en stats */
         .stats-divider {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin: 0.75rem 0 0.25rem;
-            font-size: 0.65rem;
+            gap: .75rem;
+            margin: .9rem 0 .4rem;
+            font-size: .65rem;
             font-weight: 700;
             color: var(--clr-text-faint);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: .1em;
         }
-        .stats-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--clr-border);
+        .stats-divider::after { content:'';flex:1;height:1px;background:var(--clr-border); }
+
+        .stat-card.stat-gestión .stat-icon { background:rgba(168,85,247,.15); }
+        .stat-card.stat-gestión:hover { border-color:rgba(168,85,247,.3); }
+        .stat-card.stat-total {
+            border-color:rgba(43,127,255,.25);
+            background:linear-gradient(135deg,rgba(43,127,255,.08),rgba(0,212,255,.05));
         }
+        .stat-card.stat-total .stat-value,
+        .stat-card.stat-total .stat-label { color:var(--clr-primary); }
+        .stat-card.stat-total .stat-icon  { background:rgba(43,127,255,.2); }
 
-        /* Card de stat de personas distinto */
-        .stat-card.stat-gestión .stat-icon { background: rgba(168,85,247,0.15); }
-        .stat-card.stat-gestión:hover { border-color: rgba(168,85,247,0.3); }
-        .stat-card.stat-gestión:hover::before {
-            background: linear-gradient(90deg, #a855f7, var(--clr-primary));
-        }
-
-        /* Stat total resaltado */
-        .stat-card.stat-total { border-color: rgba(43,127,255,0.25); background: linear-gradient(135deg, rgba(43,127,255,0.08), rgba(0,212,255,0.05)); }
-        .stat-card.stat-total .stat-value { color: var(--clr-primary); }
-        .stat-card.stat-total .stat-label { color: var(--clr-primary); }
-        .stat-card.stat-total .stat-icon  { background: rgba(43,127,255,0.2); }
-
-        /* Estado del sistema */
         .sys-row {
+            display:flex;align-items:center;gap:.75rem;
+            padding:.6rem 0;border-bottom:1px solid var(--clr-border);font-size:.82rem;
+        }
+        .sys-row:last-child { border-bottom:none; }
+        .sys-label { color:var(--clr-text-muted);flex:1; }
+
+        .chart-wrap { position:relative;width:100%; }
+        .chart-wrap canvas { display:block; }
+
+        /* Asignados */
+        .assign-row { display:flex;flex-direction:column;gap:.8rem; }
+        .assign-header {
+            display:flex;justify-content:space-between;
+            align-items:baseline;margin-bottom:.3rem;
+        }
+        .assign-label {
+            font-size:.78rem;font-weight:600;
+            color:var(--clr-text-muted);display:flex;align-items:center;gap:.4rem;
+        }
+        .assign-nums { font-size:.72rem;color:var(--clr-text-faint);font-family:var(--font-mono); }
+        .assign-bar-bg { height:7px;border-radius:10px;background:var(--clr-surface-2);overflow:hidden; }
+        .assign-bar-fill {
+            height:100%;border-radius:10px;
+            background:linear-gradient(90deg,var(--clr-primary),#00d4ff);
+            transition:width .8s cubic-bezier(.34,1.2,.64,1);
+        }
+        .assign-bar-fill.warn  { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+        .assign-bar-fill.empty { background:var(--clr-surface-3); }
+
+        /* Historial */
+        .hist-list { display:flex;flex-direction:column; }
+        .hist-item {
+            display:flex;align-items:flex-start;gap:.65rem;
+            padding:.6rem 0;border-bottom:1px solid var(--clr-border);font-size:.79rem;
+        }
+        .hist-item:last-child { border-bottom:none; }
+        .hist-icon {
+            width:28px;height:28px;border-radius:8px;
+            display:flex;align-items:center;justify-content:center;
+            font-size:.75rem;flex-shrink:0;
+        }
+        .hist-body { flex:1;min-width:0; }
+        .hist-title {
+            font-weight:600;color:var(--clr-text);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .hist-sub {
+            color:var(--clr-text-faint);font-size:.72rem;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        }
+        .hist-time {
+            font-size:.68rem;color:var(--clr-text-faint);
+            font-family:var(--font-mono);flex-shrink:0;padding-top:1px;
+        }
+        .hist-empty {
+            padding:2rem 0;text-align:center;
+            color:var(--clr-text-faint);font-size:.82rem;
+        }
+
+        /* Roles */
+        .roles-grid {
+            display:grid;grid-template-columns:repeat(3,1fr);
+            gap:.75rem;margin-top:.25rem;
+        }
+        .rol-card {
+            border-radius:var(--r-sm);padding:1rem 1.1rem;
+            border:1px solid var(--clr-border);
+            display:flex;align-items:center;gap:.8rem;
+        }
+        .rol-icon {
+            width:38px;height:38px;border-radius:10px;
+            display:flex;align-items:center;justify-content:center;
+            font-size:1rem;flex-shrink:0;
+        }
+        .rol-info { flex:1; }
+        .rol-name {
+            font-size:.7rem;color:var(--clr-text-muted);
+            font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+        }
+        .rol-count {
+            font-size:1.5rem;font-weight:800;
+            font-family:var(--font-display);line-height:1.2;
+        }
+        .rol-admin  { background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.2); }
+        .rol-admin  .rol-icon  { background:rgba(168,85,247,.15); }
+        .rol-admin  .rol-count { color:#a855f7; }
+        .rol-tics   { background:rgba(43,127,255,.06);border-color:rgba(43,127,255,.2); }
+        .rol-tics   .rol-icon  { background:rgba(43,127,255,.15); }
+        .rol-tics   .rol-count { color:var(--clr-primary); }
+        .rol-visit  { background:rgba(100,116,139,.06);border-color:rgba(100,116,139,.2); }
+        .rol-visit  .rol-icon  { background:rgba(100,116,139,.12); }
+        .rol-visit  .rol-count { color:var(--clr-text-muted); }
+
+        .skel { background:var(--clr-surface-2);border-radius:6px;animation:skel-pulse 1.4s ease infinite; }
+        @keyframes skel-pulse { 0%,100%{opacity:.5}50%{opacity:1} }
+
+        /* Marcas */
+        .marca-row {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            padding: 0.65rem 0;
+            gap: .65rem;
+            padding: .45rem 0;
             border-bottom: 1px solid var(--clr-border);
-            font-size: 0.82rem;
         }
-        .sys-row:last-child { border-bottom: none; }
-        .sys-label { color: var(--clr-text-muted); flex: 1; }
-        .sys-value { font-weight: 600; }
-
-        /* Accesos rápidos grid */
-        .quick-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
+        .marca-row:last-child { border-bottom: none; }
+        .marca-rank {
+            width: 18px;
+            font-size: .68rem;
+            font-weight: 700;
+            color: var(--clr-text-faint);
+            text-align: center;
+            flex-shrink: 0;
         }
-        .quick-link {
+        .marca-rank.top1 { color: #f59e0b; }
+        .marca-rank.top2 { color: #94a3b8; }
+        .marca-rank.top3 { color: #b45309; }
+        .marca-name {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--clr-text);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .marca-bar-wrap {
+            flex: 2;
             display: flex;
             align-items: center;
-            gap: 0.55rem;
-            padding: 0.55rem 0.75rem;
-            border-radius: var(--r-sm);
+            gap: .5rem;
+        }
+        .marca-bar-bg {
+            flex: 1;
+            height: 6px;
+            border-radius: 10px;
             background: var(--clr-surface-2);
-            border: 1px solid var(--clr-border);
+            overflow: hidden;
+        }
+        .marca-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width .7s cubic-bezier(.34,1.2,.64,1);
+        }
+        .marca-count {
+            font-size: .72rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
             color: var(--clr-text-muted);
-            text-decoration: none;
-            font-size: 0.8rem;
-            font-weight: 500;
-            transition: all var(--tr-fast);
+            width: 24px;
+            text-align: right;
+            flex-shrink: 0;
         }
-        .quick-link:hover {
-            background: var(--clr-surface-3);
-            border-color: var(--clr-border-light);
-            color: var(--clr-text);
-            transform: translateX(2px);
-        }
-        .quick-link svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--clr-primary); }
 
-        @media (max-width: 768px) {
-            .dash-grid { grid-template-columns: 1fr; }
-            .quick-grid { grid-template-columns: 1fr 1fr; }
+        /* Últimos equipos: badge tipo */
+        .eq-tipo {
+            display: inline-block;
+            padding: .1rem .45rem;
+            border-radius: 5px;
+            font-size: .65rem;
+            font-weight: 700;
+            background: rgba(43,127,255,.12);
+            color: var(--clr-primary);
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        @media (max-width: 480px) {
-            .quick-grid { grid-template-columns: 1fr; }
-        }
+
+        @media (max-width:900px)  { .dash-grid-2 { grid-template-columns:1fr; } }
+        @media (max-width:560px)  { .roles-grid  { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -114,7 +224,7 @@
                     </svg>
                     Dashboard
                 </h1>
-                <p class="page-subtitle">Resumen del inventario TI activo</p>
+                <p class="page-subtitle" id="subtitleDash">Cargando inventario...</p>
             </div>
             <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -125,26 +235,33 @@
             </button>
         </div>
 
-        <!-- Equipos -->
+        <!-- ── Equipos TI ── -->
         <div class="stats-divider">Equipos TI</div>
-        <div class="stats-grid" id="statsEquipos" style="margin-bottom:.5rem;">
-            <!-- skeleton -->
+        <div class="stats-grid" id="statsEquipos" style="margin-bottom:.25rem;">
             <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
             <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
             <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
             <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
         </div>
 
-        <!-- Gestión -->
+        <!-- ── Gestión ── -->
         <div class="stats-divider">Gestión</div>
-        <div class="stats-grid" id="statsGestion" style="margin-bottom:.5rem;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));">
+        <div class="stats-grid" id="statsGestion" style="margin-bottom:.25rem;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));">
             <div class="stat-card" style="opacity:.35;pointer-events:none;"><div class="stat-icon"></div><div class="stat-value">—</div><div class="stat-label">Cargando...</div></div>
         </div>
 
-        <!-- Grilla inferior -->
-        <div class="dash-grid">
-
-            <!-- Estado del sistema -->
+        <!-- ── Distribución + Estado del Sistema ── -->
+        <div class="stats-divider">Distribución</div>
+        <div class="dash-grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Distribución de Equipos</span>
+                    <span id="totalLabel" class="text-faint font-mono" style="font-size:.7rem;"></span>
+                </div>
+                <div class="chart-wrap" style="height:230px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="donutChart"></canvas>
+                </div>
+            </div>
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Estado del Sistema</span>
@@ -155,135 +272,402 @@
                     <div class="sys-row"><span class="status-pulse"></span><span class="sys-label">Base de Datos TiDB</span><span class="sys-value" id="dbStatus" style="color:var(--clr-text-faint);">Verificando...</span></div>
                     <div class="sys-row">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--clr-text-faint)" stroke-width="2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span class="sys-label">Zona horaria</span>
-                        <span class="sys-value text-muted">America/Bogotá</span>
+                        <span class="sys-label">Zona horaria</span><span class="sys-value text-muted">America/Bogotá</span>
                     </div>
                     <div class="sys-row">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--clr-text-faint)" stroke-width="2" style="flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                        <span class="sys-label">Autenticación JWT</span>
-                        <span class="sys-value text-success">Activa</span>
+                        <span class="sys-label">Autenticación JWT</span><span class="sys-value text-success">Activa</span>
+                    </div>
+                    <div class="sys-row">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--clr-text-faint)" stroke-width="2" style="flex-shrink:0;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <span class="sys-label">Última actualización</span>
+                        <span class="sys-value text-muted font-mono" id="lastSync" style="font-size:.75rem;">—</span>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Accesos rápidos -->
+        <!-- ── Equipos por ubicación ── -->
+        <div class="stats-divider">Ubicaciones</div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Equipos por Ubicación</span>
+                <span class="text-faint" style="font-size:.72rem;">Top ubicaciones con más equipos asignados</span>
+            </div>
+            <div class="chart-wrap" style="height:240px;">
+                <canvas id="ubicChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Asignados vs sin asignar + Actividad reciente ── -->
+        <div class="stats-divider">Asignación &amp; Actividad</div>
+        <div class="dash-grid-2">
             <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Accesos Rápidos</span>
-                </div>
-                <div class="quick-grid">
-                    <a href="/pages/computador.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                        Computadores
-                    </a>
-                    <a href="/pages/celular.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                        Celulares
-                    </a>
-                    <a href="/pages/impresora.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                        Impresoras
-                    </a>
-                    <a href="/pages/radio.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></svg>
-                        Radios
-                    </a>
-                    <a href="/pages/telefono_ip.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5.06 2 2 0 0 1 3.58 3h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.73 2.81a2 2 0 0 1-.45 2.11L7.91 10.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.91.36 1.85.6 2.81.73A2 2 0 0 1 22 16.92z"/></svg>
-                        Teléfonos IP
-                    </a>
-                    <a href="/pages/tablet.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                        Tablets
-                    </a>
-                    <a href="/pages/accesorios.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-                        Accesorios
-                    </a>
-                    <a href="/pages/persona.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        Personas
-                    </a>
-                    <a href="/pages/ubicacion.html" class="quick-link">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        Ubicaciones
-                    </a>
+                <div class="card-header"><span class="card-title">Asignados vs Sin Asignar</span></div>
+                <div class="assign-row" id="assignRows">
+                    <div class="skel" style="height:38px;"></div>
+                    <div class="skel" style="height:38px;margin-top:.5rem;"></div>
+                    <div class="skel" style="height:38px;margin-top:.5rem;"></div>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Actividad Reciente</span>
+                    <a href="/pages/historial.html" style="font-size:.72rem;color:var(--clr-primary);text-decoration:none;">Ver todo →</a>
+                </div>
+                <div class="hist-list" id="histList">
+                    <div class="hist-empty">Cargando actividad...</div>
+                </div>
+            </div>
+        </div>
 
-        </div><!-- /dash-grid -->
+        <!-- ── Últimos equipos registrados ── -->
+        <div class="stats-divider">Nuevos Ingresos</div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Últimos Equipos Registrados</span>
+                <span class="text-faint" style="font-size:.72rem;">Más recientes en el inventario</span>
+            </div>
+            <div class="hist-list" id="ultimosList" style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+                <div class="hist-empty" style="grid-column:1/-1;">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- ── Personal por rol ── -->
+        <div class="stats-divider">Personal</div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Distribución del Personal</span>
+                <a href="/pages/persona.html" style="font-size:.72rem;color:var(--clr-primary);text-decoration:none;">Gestionar →</a>
+            </div>
+            <div class="roles-grid" id="rolesGrid">
+                <div class="skel" style="height:70px;border-radius:10px;"></div>
+                <div class="skel" style="height:70px;border-radius:10px;"></div>
+                <div class="skel" style="height:70px;border-radius:10px;"></div>
+            </div>
+        </div>
+
     </main>
-
     <div id="footer-placeholder"></div>
 </div>
 
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
-/* ── Config stats equipos ── */
-const EQUIPOS_STATS = [
-    { key: 'computadores',  label: 'Computadores',  icon: '💻', href: '/pages/computador.html' },
-    { key: 'celulares',     label: 'Celulares',     icon: '📱', href: '/pages/celular.html'    },
-    { key: 'impresoras',    label: 'Impresoras',    icon: '🖨️', href: '/pages/impresora.html'  },
-    { key: 'radios',        label: 'Radios',        icon: '📻', href: '/pages/radio.html'      },
-    { key: 'telefonos_ip',  label: 'Teléfonos IP',  icon: '📞', href: '/pages/telefono_ip.html'},
-    { key: 'tablets',       label: 'Tablets',       icon: '📲', href: '/pages/tablet.html'     },
-    { key: 'accesorios',    label: 'Accesorios',    icon: '🔌', href: '/pages/accesorios.html' },
+const EQUIPOS_CFG = [
+    { key:'computadores', label:'Computadores', icon:'💻', href:'/pages/computador.html',  color:'#2b7fff' },
+    { key:'celulares',    label:'Celulares',    icon:'📱', href:'/pages/celular.html',     color:'#00d4ff' },
+    { key:'impresoras',   label:'Impresoras',   icon:'🖨️', href:'/pages/impresora.html',   color:'#a855f7' },
+    { key:'radios',       label:'Radios',        icon:'📻', href:'/pages/radio.html',       color:'#f59e0b' },
+    { key:'telefonos_ip', label:'Teléfonos IP',  icon:'📞', href:'/pages/telefono_ip.html', color:'#10b981' },
+    { key:'tablets',      label:'Tablets',       icon:'📲', href:'/pages/tablet.html',      color:'#ef4444' },
+    { key:'accesorios',   label:'Accesorios',    icon:'🔌', href:'/pages/accesorios.html',  color:'#6366f1' },
 ];
 
-/* ── Personas viene de /personas (activo=true, boolean en BD) ── */
+let donutChart = null, ubicChart = null;
+
+Chart.defaults.color       = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.07)';
+Chart.defaults.font.family = "'Inter','Manrope',sans-serif";
+Chart.defaults.font.size   = 11;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.padding  = 12;
+
+/* ── Main loader ── */
 async function loadDashboard() {
     try {
-        /* Lanzar ambas peticiones en paralelo */
-        const [statsRes, personasRes] = await Promise.all([
-            API.request('/stats'),
-            API.request('/personas')
-        ]);
+        const res = await API.request('/dashboard');
+        if (!res.success) throw new Error('Error en respuesta');
+        const d = res.data;
 
-        /* ─ Stats de equipos ─ */
-        if (statsRes.success) {
-            const s = statsRes.data;
-            const totalEquipos = EQUIPOS_STATS.reduce((acc, c) => acc + (Number(s[c.key]) || 0), 0);
+        renderStatCards(d.stats);
+        renderGestion(d.personas);
+        renderDonut(d.stats);
+        renderUbicaciones(d.porUbicacion);
+        renderAsignacion(d.asignacion);
+        renderHistorial(d.historial);
+        renderRoles(d.personasPorRol);
+        renderUltimos(d.ultimosEquipos);
 
-            document.getElementById('statsEquipos').innerHTML =
-                EQUIPOS_STATS.map(cfg => `
-                    <a href="${cfg.href}" class="stat-card" style="text-decoration:none;">
-                        <div class="stat-icon">${cfg.icon}</div>
-                        <div class="stat-value">${s[cfg.key] ?? 0}</div>
-                        <div class="stat-label">${cfg.label}</div>
-                    </a>
-                `).join('') +
-                `<div class="stat-card stat-total" style="text-decoration:none;">
-                    <div class="stat-icon">📦</div>
-                    <div class="stat-value">${totalEquipos}</div>
-                    <div class="stat-label">Total Equipos</div>
-                </div>`;
-
-            /* DB activa */
-            document.getElementById('dbStatus').textContent = '✓ Conectada';
-            document.getElementById('dbStatus').style.color  = 'var(--clr-success)';
-            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-CO');
-        }
-
-        /* ─ Stats de gestión: personas activas (activo = true BOOLEAN) ─ */
-        const totalPersonas = personasRes.success
-            ? (personasRes.data || []).filter(p => p.activo === true || p.activo === 1).length
-            : 0;
-
-        document.getElementById('statsGestion').innerHTML = `
-            <a href="/pages/persona.html" class="stat-card stat-gestión" style="text-decoration:none;">
-                <div class="stat-icon">👥</div>
-                <div class="stat-value">${totalPersonas}</div>
-                <div class="stat-label">Personas Activas</div>
-            </a>`;
+        document.getElementById('dbStatus').textContent = '✓ Conectada';
+        document.getElementById('dbStatus').style.color = 'var(--clr-success)';
+        const now = new Date().toLocaleTimeString('es-CO');
+        document.getElementById('lastUpdate').textContent = now;
+        document.getElementById('lastSync').textContent   = now;
+        const total = d.stats.total || 0;
+        document.getElementById('subtitleDash').textContent =
+            `${total} equipo${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''} en el inventario · ${now}`;
 
     } catch(err) {
         console.error('Dashboard error:', err);
-        document.getElementById('statsEquipos').innerHTML =
-            `<div style="grid-column:1/-1;padding:2rem;text-align:center;color:var(--clr-text-muted);font-size:.85rem;">
-                No se pudieron cargar las estadísticas
-            </div>`;
+        document.getElementById('subtitleDash').textContent = 'Error al cargar datos';
     }
+}
+
+/* ── Stat cards equipos ── */
+function renderStatCards(stats) {
+    document.getElementById('statsEquipos').innerHTML =
+        EQUIPOS_CFG.map(cfg => `
+            <a href="${cfg.href}" class="stat-card" style="text-decoration:none;">
+                <div class="stat-icon">${cfg.icon}</div>
+                <div class="stat-value">${stats[cfg.key] ?? 0}</div>
+                <div class="stat-label">${cfg.label}</div>
+            </a>`).join('') +
+        `<div class="stat-card stat-total">
+            <div class="stat-icon">📦</div>
+            <div class="stat-value">${stats.total || 0}</div>
+            <div class="stat-label">Total Equipos</div>
+        </div>`;
+}
+
+/* ── Stat cards gestión ── */
+function renderGestion(personas) {
+    const activas   = Number(personas?.activas ?? 0);
+    const total     = Number(personas?.total   ?? 0);
+    const inactivas = total - activas;
+    document.getElementById('statsGestion').innerHTML = `
+        <a href="/pages/persona.html" class="stat-card stat-gestión" style="text-decoration:none;">
+            <div class="stat-icon">👥</div>
+            <div class="stat-value">${activas}</div>
+            <div class="stat-label">Personas Activas</div>
+        </a>
+        <div class="stat-card" style="pointer-events:none;">
+            <div class="stat-icon">🔒</div>
+            <div class="stat-value">${inactivas}</div>
+            <div class="stat-label">Inactivas</div>
+        </div>`;
+}
+
+/* ── Donut chart ── */
+function renderDonut(stats) {
+    const labels = EQUIPOS_CFG.map(c => c.label);
+    const data   = EQUIPOS_CFG.map(c => Number(stats[c.key] || 0));
+    const colors = EQUIPOS_CFG.map(c => c.color);
+
+    if (donutChart) { donutChart.destroy(); donutChart = null; }
+    document.getElementById('totalLabel').textContent = `Total: ${stats.total || 0}`;
+
+    donutChart = new Chart(document.getElementById('donutChart'), {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{ data, backgroundColor: colors.map(c => c + 'cc'), borderColor: colors, borderWidth: 1.5, hoverOffset: 6 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: { position: 'right', labels: { pointStyle: 'circle', usePointStyle: true } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const total = stats.total || 1;
+                            return ` ${ctx.label}: ${ctx.parsed} (${((ctx.parsed/total)*100).toFixed(1)}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/* ── Barras horizontales por ubicación ── */
+function renderUbicaciones(data) {
+    const wrap = document.getElementById('ubicChart').closest('.card');
+    if (!data || !data.length) {
+        wrap.querySelector('.chart-wrap').innerHTML =
+            '<div style="padding:3rem;text-align:center;color:var(--clr-text-faint);font-size:.82rem;">Sin datos de ubicación aún</div>';
+        return;
+    }
+    const palette = ['#2b7fff','#00d4ff','#a855f7','#10b981','#f59e0b','#ef4444','#6366f1','#ec4899'];
+    if (ubicChart) { ubicChart.destroy(); ubicChart = null; }
+
+    ubicChart = new Chart(document.getElementById('ubicChart'), {
+        type: 'bar',
+        data: {
+            labels: data.map(r => r.nombre || 'Sin nombre'),
+            datasets: [{
+                label: 'Equipos asignados',
+                data: data.map(r => Number(r.total)),
+                backgroundColor: palette.slice(0, data.length).map(c => c + 'bb'),
+                borderColor:     palette.slice(0, data.length),
+                borderWidth: 1, borderRadius: 6, borderSkipped: false
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} equipo${ctx.parsed.x !== 1 ? 's' : ''}` } }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+}
+
+/* ── Barras de asignación ── */
+function renderAsignacion(a) {
+    if (!a) { document.getElementById('assignRows').innerHTML = '<div class="hist-empty">Sin datos</div>'; return; }
+    const items = [
+        { label:'Computadores', icon:'💻', total:+a.comp_total,   asig:+a.comp_asig   },
+        { label:'Celulares',    icon:'📱', total:+a.cel_total,    asig:+a.cel_asig    },
+        { label:'Radios',       icon:'📻', total:+a.radio_total,  asig:+a.radio_asig  },
+        { label:'Tablets',      icon:'📲', total:+a.tablet_total, asig:+a.tablet_asig },
+        { label:'Teléfonos IP', icon:'📞', total:+a.tel_total,    asig:+a.tel_asig    },
+    ].filter(i => i.total > 0);
+
+    if (!items.length) { document.getElementById('assignRows').innerHTML = '<div class="hist-empty">Sin datos de asignación</div>'; return; }
+
+    document.getElementById('assignRows').innerHTML = items.map(item => {
+        const pct     = item.total > 0 ? Math.round((item.asig / item.total) * 100) : 0;
+        const sinAsig = item.total - item.asig;
+        const cls     = pct === 0 ? 'empty' : pct < 40 ? 'warn' : '';
+        return `<div class="assign-item">
+            <div class="assign-header">
+                <span class="assign-label">${item.icon} ${item.label}</span>
+                <span class="assign-nums">${item.asig}/${item.total} · ${sinAsig} libre${sinAsig !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="assign-bar-bg">
+                <div class="assign-bar-fill ${cls}" style="width:${pct}%"></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* ── Historial reciente ── */
+const ACCION_CFG = {
+    'ASIGNACION':    { icon:'📤', bg:'rgba(16,185,129,.15)',  color:'#10b981' },
+    'DEVOLUCION':    { icon:'📥', bg:'rgba(99,102,241,.15)',  color:'#6366f1' },
+    'MANTENIMIENTO': { icon:'🔧', bg:'rgba(245,158,11,.15)',  color:'#f59e0b' },
+    'DADO DE BAJA':  { icon:'🗑️', bg:'rgba(239,68,68,.15)',   color:'#ef4444' },
+    'REACTIVACION':  { icon:'✅', bg:'rgba(34,197,94,.15)',   color:'#22c55e' },
+    'REEMPLAZO':     { icon:'🔄', bg:'rgba(168,85,247,.15)',  color:'#a855f7' },
+};
+
+function renderHistorial(rows) {
+    if (!rows || !rows.length) {
+        document.getElementById('histList').innerHTML = '<div class="hist-empty">📋 Sin actividad registrada aún</div>';
+        return;
+    }
+    document.getElementById('histList').innerHTML = rows.map(r => {
+        const cfg  = ACCION_CFG[r.tipo_accion] || { icon:'•', bg:'rgba(100,116,139,.15)', color:'#64748b' };
+        const when = r.fecha_accion ? timeAgo(new Date(r.fecha_accion)) : '—';
+        const tipo = (r.tipo_equipo || '').replace('_', ' ');
+        return `<div class="hist-item">
+            <div class="hist-icon" style="background:${cfg.bg};color:${cfg.color};">${cfg.icon}</div>
+            <div class="hist-body">
+                <div class="hist-title">${r.tipo_accion} · ${tipo}</div>
+                <div class="hist-sub">${r.persona || 'Sin persona'} · ${r.ubicacion || 'Sin ubicación'}</div>
+            </div>
+            <div class="hist-time">${when}</div>
+        </div>`;
+    }).join('');
+}
+
+/* ── Personas por rol ── */
+function renderRoles(rows) {
+    const map = { ADMINISTRADOR: 0, TICS: 0, VISITANTE: 0 };
+    (rows || []).forEach(r => { if (r.rol in map) map[r.rol] = +r.cantidad; });
+    document.getElementById('rolesGrid').innerHTML = `
+        <div class="rol-card rol-admin">
+            <div class="rol-icon">👑</div>
+            <div class="rol-info">
+                <div class="rol-name">Administradores</div>
+                <div class="rol-count">${map.ADMINISTRADOR}</div>
+            </div>
+        </div>
+        <div class="rol-card rol-tics">
+            <div class="rol-icon">🛠️</div>
+            <div class="rol-info">
+                <div class="rol-name">Técnicos TICS</div>
+                <div class="rol-count">${map.TICS}</div>
+            </div>
+        </div>
+        <div class="rol-card rol-visit">
+            <div class="rol-icon">🪪</div>
+            <div class="rol-info">
+                <div class="rol-name">Visitantes</div>
+                <div class="rol-count">${map.VISITANTE}</div>
+            </div>
+        </div>`;
+}
+
+/* ── Últimos equipos registrados ── */
+const TIPO_ICONS = {
+    'Computador':  { icon:'💻', color:'#2b7fff' },
+    'Celular':     { icon:'📱', color:'#00d4ff' },
+    'Impresora':   { icon:'🖨️', color:'#a855f7' },
+    'Radio':       { icon:'📻', color:'#f59e0b' },
+    'Teléfono IP': { icon:'📞', color:'#10b981' },
+    'Tablet':      { icon:'📲', color:'#ef4444' },
+    'Accesorio':   { icon:'🔌', color:'#6366f1' },
+};
+
+function renderUltimos(rows) {
+    const el = document.getElementById('ultimosList');
+    if (!rows || !rows.length) {
+        el.innerHTML = '<div class="hist-empty" style="grid-column:1/-1;">📦 Sin equipos registrados aún</div>';
+        return;
+    }
+    el.innerHTML = rows.map(r => {
+        const cfg   = TIPO_ICONS[r.tipo] || { icon:'📦', color:'#64748b' };
+        const when  = r.fecha_creacion ? timeAgo(new Date(r.fecha_creacion)) : '—';
+        const marca = r.marca ? `${r.marca}${r.modelo ? ' · ' + r.modelo : ''}` : '—';
+        return `<div class="hist-item">
+            <div class="hist-icon" style="background:${cfg.color}1a;color:${cfg.color};">${cfg.icon}</div>
+            <div class="hist-body">
+                <div class="hist-title">${r.nombre || '—'}</div>
+                <div class="hist-sub"><span class="eq-tipo">${r.tipo}</span>&nbsp; ${marca}</div>
+            </div>
+            <div class="hist-time">${when}</div>
+        </div>`;
+    }).join('');
+}
+
+/* ── Top marcas ── */
+const MARCA_COLORS = [
+    '#2b7fff','#00d4ff','#a855f7','#10b981',
+    '#f59e0b','#ef4444','#6366f1','#ec4899'
+];
+
+function renderMarcas(rows) {
+    if (!rows || !rows.length) {
+        document.getElementById('marcasWrap').innerHTML =
+            '<div class="hist-empty">Sin datos de marcas</div>';
+        return;
+    }
+    const maxVal = Math.max(...rows.map(r => Number(r.total)), 1);
+    const ranks  = ['top1','top2','top3'];
+    document.getElementById('marcasWrap').innerHTML = rows.map((r, i) => {
+        const pct   = Math.round((Number(r.total) / maxVal) * 100);
+        const color = MARCA_COLORS[i] || '#64748b';
+        return `<div class="marca-row">
+            <div class="marca-rank ${ranks[i] || ''}">${i + 1}</div>
+            <div class="marca-name">${r.marca}</div>
+            <div class="marca-bar-wrap">
+                <div class="marca-bar-bg">
+                    <div class="marca-bar-fill" style="width:${pct}%;background:${color};"></div>
+                </div>
+                <div class="marca-count">${r.total}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* ── Helpers ── */
+function timeAgo(date) {
+    const s = (Date.now() - date.getTime()) / 1000;
+    if (s < 60)     return 'Ahora';
+    if (s < 3600)   return `${Math.floor(s/60)}m`;
+    if (s < 86400)  return `${Math.floor(s/3600)}h`;
+    if (s < 604800) return `${Math.floor(s/86400)}d`;
+    return date.toLocaleDateString('es-CO', { day:'2-digit', month:'short' });
 }
 
 loadComponents('dashboard');

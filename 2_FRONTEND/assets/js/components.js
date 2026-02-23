@@ -9,6 +9,105 @@
 //   3. Toast system actualizado con nuevas clases del CSS.
 // ============================================================================
 
+// ─── MODAL DE CONFIRMACIÓN ───────────────────────────────────────────────────
+//
+// Reemplaza el nativo confirm() con un modal temático.
+// Uso: const ok = await confirmAction({ title, message, confirmText, type })
+// type: 'danger' | 'warning' | 'info'  (default: 'danger')
+// ─────────────────────────────────────────────────────────────────────────────
+
+function confirmAction({ title = '¿Confirmar acción?', message = '', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'danger' } = {}) {
+    return new Promise(resolve => {
+        const prev = document.getElementById('_confirmModal');
+        if (prev) prev.remove();
+
+        const ICONS = {
+            danger:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+            warning: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+            info:    `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12.01" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>`,
+        };
+        const COLORS = {
+            danger:  { icon: '#ef4444', btn: '#ef4444', btnHover: '#dc2626' },
+            warning: { icon: '#f59e0b', btn: '#f59e0b', btnHover: '#d97706' },
+            info:    { icon: '#3b82f6', btn: '#3b82f6', btnHover: '#2563eb' },
+        };
+        const c = COLORS[type] || COLORS.danger;
+
+        const overlay = document.createElement('div');
+        overlay.id = '_confirmModal';
+        overlay.style.cssText = `
+            position:fixed;inset:0;z-index:9999;
+            display:flex;align-items:center;justify-content:center;
+            background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
+            animation:_cfIn .15s ease;
+        `;
+
+        overlay.innerHTML = `
+            <style>
+                @keyframes _cfIn   { from{opacity:0}to{opacity:1} }
+                @keyframes _cfSlide{ from{transform:translateY(-12px) scale(.97);opacity:0}
+                                      to {transform:translateY(0) scale(1);opacity:1} }
+                #_confirmModal .cf-box {
+                    background:var(--clr-surface,#1a1f2e);
+                    border:1px solid var(--clr-border,rgba(255,255,255,.1));
+                    border-radius:14px;padding:2rem 1.75rem 1.5rem;
+                    max-width:400px;width:calc(100vw - 2.5rem);
+                    box-shadow:0 25px 60px rgba(0,0,0,.5);
+                    animation:_cfSlide .2s cubic-bezier(.34,1.56,.64,1);text-align:center;
+                }
+                #_confirmModal .cf-icon {
+                    width:52px;height:52px;border-radius:50%;
+                    background:${c.icon}22;display:flex;align-items:center;
+                    justify-content:center;margin:0 auto 1rem;color:${c.icon};
+                }
+                #_confirmModal .cf-title {
+                    font-size:1rem;font-weight:700;color:var(--clr-text,#e2e8f0);
+                    margin-bottom:.45rem;font-family:var(--font-display,'Inter',sans-serif);
+                }
+                #_confirmModal .cf-msg {
+                    font-size:.85rem;color:var(--clr-text-muted,#94a3b8);
+                    line-height:1.55;margin-bottom:1.5rem;
+                }
+                #_confirmModal .cf-actions { display:flex;gap:.65rem;justify-content:center; }
+                #_confirmModal .cf-btn {
+                    flex:1;padding:.6rem 1rem;border-radius:8px;border:none;
+                    font-size:.84rem;font-weight:600;cursor:pointer;
+                    transition:background .15s,transform .1s;font-family:inherit;
+                }
+                #_confirmModal .cf-btn:active { transform:scale(.97); }
+                #_confirmModal .cf-cancel {
+                    background:var(--clr-surface-2,#252b3b);
+                    color:var(--clr-text-muted,#94a3b8);
+                    border:1px solid var(--clr-border,rgba(255,255,255,.1));
+                }
+                #_confirmModal .cf-cancel:hover { background:var(--clr-surface-3,#2f3650); }
+                #_confirmModal .cf-confirm { background:${c.btn};color:#fff; }
+                #_confirmModal .cf-confirm:hover { background:${c.btnHover}; }
+            </style>
+            <div class="cf-box">
+                <div class="cf-icon">${ICONS[type] || ICONS.danger}</div>
+                <div class="cf-title">${title}</div>
+                ${message ? `<div class="cf-msg">${message}</div>` : ''}
+                <div class="cf-actions">
+                    <button class="cf-btn cf-cancel" id="_cfCancel">${cancelText}</button>
+                    <button class="cf-btn cf-confirm" id="_cfConfirm">${confirmText}</button>
+                </div>
+            </div>`;
+
+        document.body.appendChild(overlay);
+        const close = (result) => { overlay.remove(); resolve(result); };
+        document.getElementById('_cfConfirm').addEventListener('click', () => close(true));
+        document.getElementById('_cfCancel').addEventListener('click',  () => close(false));
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
+        const onKey = e => {
+            if (e.key === 'Enter')  { close(true);  document.removeEventListener('keydown', onKey); }
+            if (e.key === 'Escape') { close(false); document.removeEventListener('keydown', onKey); }
+        };
+        document.addEventListener('keydown', onKey);
+        setTimeout(() => document.getElementById('_cfConfirm')?.focus(), 50);
+    });
+}
+
 // ─── TOASTS ──────────────────────────────────────────────────────────────────
 
 function showSuccess(msg) { _showToast(msg, 'toast-success', '✔'); }
@@ -58,8 +157,15 @@ function formatDateTime(date) {
 
 // ─── AUTENTICACIÓN ───────────────────────────────────────────────────────────
 
-window.logout = function () {
-    if (confirm('¿Cerrar sesión?')) {
+window.logout = async function () {
+    const ok = await confirmAction({
+        title: 'Cerrar sesión',
+        message: '¿Estás seguro que deseas cerrar tu sesión actual?',
+        confirmText: 'Cerrar sesión',
+        cancelText: 'Cancelar',
+        type: 'warning'
+    });
+    if (ok) {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
         window.location.href = '/index.html';

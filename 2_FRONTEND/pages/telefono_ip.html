@@ -199,7 +199,8 @@ async function saveItem(){
 }
 function editItem(id){openModal('edit',id);}
 async function deleteItem(id){
-    if(!confirm('¿Confirmas dar de baja este teléfono IP?'))return;
+    const _ok = await confirmAction({ title: '¿Dar de baja teléfono IP?', message: 'Esta acción desactivará el registro del sistema.', confirmText: 'Dar de baja', type: 'danger' });
+    if (!_ok) return;
     try{await API.delete(`/telefonos-ip/${id}`);showSuccess('Dado de baja.');loadData();}
     catch(err){showError('Error: '+err.message);}
 }

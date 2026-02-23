@@ -7,7 +7,18 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const data = await Persona.getAll(req.query);
+        const filtros = { ...req.query };
+
+        // Solo ADMINISTRADOR puede ver personas inactivas.
+        // Para cualquier otro rol se fuerza activo=true.
+        if (req.user.rol !== 'admin') {
+            filtros.activo = 'true';
+        } else if (filtros.activo === undefined) {
+            // Admin sin filtro explícito → ver todos (activos e inactivos)
+            filtros.activo = 'all';
+        }
+
+        const data = await Persona.getAll(filtros);
         res.json({ success: true, count: data.length, data });
     } catch (e) {
         res.status(500).json({ success: false, error: 'Error al obtener personas' });

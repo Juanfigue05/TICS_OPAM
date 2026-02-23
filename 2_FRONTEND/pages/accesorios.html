@@ -43,6 +43,9 @@
                     <option value="BODEGA">Bodega</option>
                     <option value="BAJA">Baja</option>
                 </select>
+                <select id="filterMarca" style="width:auto;padding:.55rem .9rem;">
+                    <option value="">Todas las marcas</option>
+                </select>
                 <button class="btn btn-primary" onclick="openModal('create')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Nuevo Accesorio
@@ -141,9 +144,18 @@ async function loadData(){
     try{
         const res=await API.getAccesorios();
         allData=res.data||[];
-        renderTable(allData);
+        populateMarcas(allData);
+        applyFilters();
         document.getElementById('subtitleCount').textContent=`${allData.length} accesorio${allData.length!==1?'s':''} registrado${allData.length!==1?'s':''}`;
     }catch(e){tbody.innerHTML=`<tr><td colspan="9" class="text-muted" style="text-align:center;padding:2rem;">Error al cargar datos</td></tr>`;}
+}
+
+function populateMarcas(data) {
+    const sel = document.getElementById('filterMarca');
+    const current = sel.value;
+    const marcas = [...new Set(data.map(d => d.marca).filter(Boolean).map(m => m.trim()))].sort();
+    sel.innerHTML = '<option value="">Todas las marcas</option>' +
+        marcas.map(m => `<option value="${m}"${m === current ? ' selected' : ''}>${m}</option>`).join('');
 }
 
 function getBadge(v){if(!v)return'<span class="badge badge-storage">—</span>';return`<span class="badge badge-${v.toLowerCase().replace(/\s/g,'')}">${v}</span>`;}
@@ -175,15 +187,18 @@ function applyFilters(){
     const s=document.getElementById('searchInput').value.toLowerCase();
     const e=document.getElementById('filterEstado').value;
     const t=document.getElementById('filterTipo').value;
+    const m=document.getElementById('filterMarca').value;
     renderTable(allData.filter(d=>
         (!s||[d.tipo_accesorio,d.marca,d.modelo,d.serial,d.descripcion,d.nombre_usuario].some(v=>(v||'').toLowerCase().includes(s)))&&
         (!e||d.activo===e)&&
-        (!t||d.tipo_accesorio===t)
+        (!t||d.tipo_accesorio===t)&&
+        (!m||d.marca===m)
     ));
 }
 document.getElementById('searchInput').addEventListener('input',applyFilters);
 document.getElementById('filterEstado').addEventListener('change',applyFilters);
 document.getElementById('filterTipo').addEventListener('change',applyFilters);
+document.getElementById('filterMarca').addEventListener('change',applyFilters);
 
 async function openModal(mode,id=null){
     currentId=id;

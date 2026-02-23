@@ -2,16 +2,26 @@ const { query } = require('../config/database');
 
 const Persona = {
 
-    async getAll({ search, rol, activo = true } = {}) {
+    async getAll({ search, rol, activo } = {}) {
         let sql = `
             SELECT p.*,
                 u.username, u.rol AS rol_sistema, u.activo AS usuario_activo,
                 u.ultimo_acceso
             FROM Personas p
             LEFT JOIN Usuarios_sistema u ON p.id_persona = u.id_persona AND u.activo = true
-            WHERE p.activo = ?
+            WHERE 1=1
         `;
-        const params = [activo];
+        const params = [];
+
+        // activo='all' o undefined → sin filtro (ver todos)
+        // activo='1'/true → solo activos
+        // activo='0'/false → solo inactivos
+        if (activo !== undefined && activo !== 'all' && activo !== '') {
+            const activoBool = activo === true || activo === 'true' || activo === '1' || activo === 1;
+            sql += ' AND p.activo = ?';
+            params.push(activoBool ? 1 : 0);
+        }
+
         if (rol)    { sql += ' AND p.rol = ?'; params.push(rol); }
         if (search) {
             sql += ` AND (p.nombre LIKE ? OR p.correo_asignado LIKE ?

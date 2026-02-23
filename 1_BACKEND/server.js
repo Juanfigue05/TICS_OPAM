@@ -105,6 +105,165 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
     }
 });
 
+// Dashboard completo (requiere auth) — todos los datos para las gráficas
+app.get('/api/dashboard', authenticateToken, async (req, res) => {
+    try {
+        const DEVICE_KEYS = ['computadores','celulares','impresoras','radios','telefonos_ip','tablets','accesorios'];
+
+        const [statsRows, ubicRows, asigRows, rolesRows, histRows, personasRows, ultimosRows, marcasRows] = await Promise.all([
+
+            // 1. Conteo de equipos activos por tipo
+            query(`SELECT
+                (SELECT COUNT(*) FROM Computadores WHERE activo = 'ACTIVO') AS computadores,
+                (SELECT COUNT(*) FROM Celulares    WHERE activo = 'ACTIVO') AS celulares,
+                (SELECT COUNT(*) FROM Impresoras   WHERE activo = 'ACTIVO') AS impresoras,
+                (SELECT COUNT(*) FROM Radios       WHERE activo = 'ACTIVO') AS radios,
+                (SELECT COUNT(*) FROM Telefonos_ip WHERE activo = 'ACTIVO') AS telefonos_ip,
+                (SELECT COUNT(*) FROM Tablets      WHERE activo = 'ACTIVO') AS tablets,
+                (SELECT COUNT(*) FROM Accesorios   WHERE activo = 'ACTIVO') AS accesorios`),
+
+            // 2. Equipos asignados por ubicación (top 8)
+            query(`
+                SELECT u.Nombre_ubicacion AS nombre, COUNT(*) AS total
+                FROM (
+                    SELECT id_ubicacion FROM Computadores_persona WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT id_ubicacion FROM Celulares_persona    WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT id_ubicacion FROM Impresoras_ubicacion WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT id_ubicacion FROM Radios_persona       WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT id_ubicacion FROM Telefono_persona     WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT id_ubicacion FROM Tablets_persona      WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT id_ubicacion FROM Accesorios_persona   WHERE activo = 'ACTIVO'
+                ) AS todos
+                JOIN Ubicaciones u ON todos.id_ubicacion = u.id_ubicacion
+                WHERE u.activo = true
+                GROUP BY u.id_ubicacion, u.Nombre_ubicacion
+                ORDER BY total DESC
+                LIMIT 8`),
+
+            // 3. Asignados vs sin asignar por tipo principal
+            query(`SELECT
+                (SELECT COUNT(*) FROM Computadores WHERE activo = 'ACTIVO') AS comp_total,
+                (SELECT COUNT(DISTINCT id_computador) FROM Computadores_persona WHERE activo = 'ACTIVO') AS comp_asig,
+                (SELECT COUNT(*) FROM Celulares    WHERE activo = 'ACTIVO') AS cel_total,
+                (SELECT COUNT(DISTINCT id_celular)  FROM Celulares_persona    WHERE activo = 'ACTIVO') AS cel_asig,
+                (SELECT COUNT(*) FROM Radios        WHERE activo = 'ACTIVO') AS radio_total,
+                (SELECT COUNT(DISTINCT id_radio)    FROM Radios_persona       WHERE activo = 'ACTIVO') AS radio_asig,
+                (SELECT COUNT(*) FROM Tablets       WHERE activo = 'ACTIVO') AS tablet_total,
+                (SELECT COUNT(DISTINCT id_tablet)   FROM Tablets_persona      WHERE activo = 'ACTIVO') AS tablet_asig,
+                (SELECT COUNT(*) FROM Telefonos_ip  WHERE activo = 'ACTIVO') AS tel_total,
+                (SELECT COUNT(DISTINCT id_telefono_ip) FROM Telefono_persona  WHERE activo = 'ACTIVO') AS tel_asig`),
+
+            // 4. Personas activas por rol
+            query(`SELECT rol, COUNT(*) AS cantidad
+                   FROM Personas WHERE activo = true GROUP BY rol ORDER BY cantidad DESC`),
+
+            // 5. Últimos 8 movimientos del historial
+            query(`SELECT h.tipo_equipo, h.tipo_accion, h.fecha_accion,
+                       p.nombre  AS persona,
+                       u.Nombre_ubicacion AS ubicacion,
+                       us.username AS usuario
+                   FROM Historial_Equipos h
+                   LEFT JOIN Personas         p  ON h.id_persona   = p.id_persona
+                   LEFT JOIN Ubicaciones      u  ON h.id_ubicacion = u.id_ubicacion
+                   LEFT JOIN Usuarios_sistema us ON h.id_usuario   = us.id_usuario
+                   ORDER BY h.fecha_accion DESC
+                   LIMIT 8`),
+
+            // 6. Total personas
+            query(`SELECT COUNT(*) AS total, SUM(activo) AS activas FROM Personas`),
+
+            // 7. Últimos 10 equipos registrados (todos los tipos)
+            query(`
+                SELECT tipo, nombre, marca, modelo, fecha_creacion FROM (
+                    SELECT 'Computador'  AS tipo,
+                        COALESCE(nombre_equipo, codigo_activo, serial_equipo) AS nombre,
+                        marca_equipo AS marca, modelo_equipo AS modelo, fecha_creacion
+                    FROM Computadores WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT 'Celular',
+                        COALESCE(nombre_celular, numero_celular, serial_celular),
+                        marca, modelo, fecha_creacion
+                    FROM Celulares WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT 'Impresora',
+                        COALESCE(nombre_equipo, serial),
+                        marca, modelo, fecha_creacion
+                    FROM Impresoras WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT 'Radio',
+                        COALESCE(tipo_radio, serial_radio),
+                        marca, modelo, fecha_creacion
+                    FROM Radios WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT 'Teléfono IP',
+                        COALESCE(nombre_telefono, serial_telefono),
+                        marca, modelo, fecha_creacion
+                    FROM Telefonos_ip WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT 'Tablet',
+                        COALESCE(nombre_tablet, serial_tablet),
+                        marca, modelo, fecha_creacion
+                    FROM Tablets WHERE activo = 'ACTIVO'
+                    UNION ALL
+                    SELECT 'Accesorio',
+                        tipo_accesorio,
+                        marca, modelo, fecha_creacion
+                    FROM Accesorios WHERE activo = 'ACTIVO'
+                ) AS todos
+                ORDER BY fecha_creacion DESC
+                LIMIT 10`),
+
+            // 8. Top marcas por cantidad de equipos activos
+            query(`
+                SELECT marca, COUNT(*) AS total FROM (
+                    SELECT marca_equipo AS marca FROM Computadores WHERE activo = 'ACTIVO' AND marca_equipo IS NOT NULL
+                    UNION ALL
+                    SELECT marca FROM Celulares    WHERE activo = 'ACTIVO' AND marca IS NOT NULL
+                    UNION ALL
+                    SELECT marca FROM Impresoras   WHERE activo = 'ACTIVO' AND marca IS NOT NULL
+                    UNION ALL
+                    SELECT marca FROM Radios        WHERE activo = 'ACTIVO' AND marca IS NOT NULL
+                    UNION ALL
+                    SELECT marca FROM Telefonos_ip  WHERE activo = 'ACTIVO' AND marca IS NOT NULL
+                    UNION ALL
+                    SELECT marca FROM Tablets       WHERE activo = 'ACTIVO' AND marca IS NOT NULL
+                    UNION ALL
+                    SELECT marca FROM Accesorios    WHERE activo = 'ACTIVO' AND marca IS NOT NULL
+                ) AS todas
+                WHERE TRIM(marca) != ''
+                GROUP BY marca
+                ORDER BY total DESC
+                LIMIT 8`)
+        ]);
+
+        const s = statsRows[0];
+        const total = DEVICE_KEYS.reduce((acc, k) => acc + Number(s[k] || 0), 0);
+
+        res.json({
+            success: true,
+            data: {
+                stats:          { ...s, total },
+                porUbicacion:   ubicRows,
+                asignacion:     asigRows[0],
+                personasPorRol: rolesRows,
+                historial:      histRows,
+                personas:       personasRows[0],
+                ultimosEquipos: ultimosRows,
+                topMarcas:      marcasRows
+            }
+        });
+    } catch (err) {
+        console.error('Error en /api/dashboard:', err.message);
+        res.status(500).json({ success: false, error: 'Error al obtener datos del dashboard' });
+    }
+});
+
 // ✅ Cualquier ruta no-API devuelve el index.html (permite navegación directa)
 app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {

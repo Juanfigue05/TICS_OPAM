@@ -37,9 +37,9 @@
                     <option value="TICS">TICS</option>
                     <option value="VISITANTE">Visitante</option>
                 </select>
-                <select id="filterActivo" style="width:auto;padding:.55rem .9rem;">
-                    <option value="">Activos e inactivos</option>
-                    <option value="1" selected>Solo activos</option>
+                <select id="filterActivo" style="width:auto;padding:.55rem .9rem;display:none;" aria-label="Filtrar por estado">
+                    <option value="all" selected>Activos e inactivos</option>
+                    <option value="1">Solo activos</option>
                     <option value="0">Solo inactivos</option>
                 </select>
                 <button class="btn btn-primary" onclick="openModal('create')">
@@ -157,13 +157,39 @@
 <script src="../assets/js/components.js"></script>
 <script>
 let allData = [], currentId = null;
+let esAdmin = false;
 const FIELDS = ['nombre','correo_asignado','cargo','rol','area','celular','extension','activo'];
+
+// Detectar rol del usuario desde localStorage
+(function initRol() {
+    try {
+        const raw = localStorage.getItem('usuario');
+        if (raw) {
+            const u = JSON.parse(raw);
+            // El rol puede estar en 'rol' (jwt: 'admin') o 'rol_db' ('ADMINISTRADOR')
+            if (u.rol === 'admin' || u.rol_db === 'ADMINISTRADOR') {
+                esAdmin = true;
+            }
+        }
+    } catch(e) {}
+    if (esAdmin) {
+        document.getElementById('filterActivo').style.display = '';
+    }
+})();
 
 async function loadData() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = `<tr class="loading-row"><td colspan="9"><div class="loader"></div></td></tr>`;
     try {
-        const res = await API.request('/personas');
+        // Admin: pasar filtro activo al servidor; no-admin: el servidor fuerza activo=true
+        const params = {};
+        if (esAdmin) {
+            const act = document.getElementById('filterActivo').value;
+            if (act && act !== 'all') params.activo = act;
+            // si es 'all' no enviamos nada → backend devuelve todos
+        }
+        const qs = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
+        const res = await API.request('/personas' + qs);
         allData = res.data || [];
         applyFilters();
         const total = allData.length;
@@ -258,7 +284,7 @@ function avatarColor(name) {
     return `hsl(${Math.abs(h) % 340}, 55%, 40%)`;
 }
 
-/* Filtros */
+/* Filtros (client-side para búsqueda y rol; activo lo maneja el servidor) */
 function applyFilters() {
     const s   = document.getElementById('searchInput').value.toLowerCase();
     const rol = document.getElementById('filterRol').value;
@@ -266,13 +292,18 @@ function applyFilters() {
     renderTable(allData.filter(d => {
         const matchSearch = !s || [d.nombre, d.correo_asignado, d.cargo, d.area].some(v => (v||'').toLowerCase().includes(s));
         const matchRol    = !rol || d.rol === rol;
-        const matchActivo = act === '' || String(d.activo === true || d.activo === 1 ? 1 : 0) === act;
+        // El filtro de activo solo aplica client-side si admin (ya tiene todos los datos)
+        const matchActivo = !esAdmin || act === 'all' || act === ''
+            || String(d.activo === true || d.activo === 1 ? 1 : 0) === act;
         return matchSearch && matchRol && matchActivo;
     }));
 }
 document.getElementById('searchInput').addEventListener('input', applyFilters);
 document.getElementById('filterRol').addEventListener('change', applyFilters);
-document.getElementById('filterActivo').addEventListener('change', applyFilters);
+// Para admins el filtro de estado recarga del servidor
+document.getElementById('filterActivo').addEventListener('change', () => {
+    if (esAdmin) loadData(); else applyFilters();
+});
 
 /* Modal */
 async function openModal(mode, id = null) {
